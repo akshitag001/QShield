@@ -1,4 +1,4 @@
-
+git checkout main
 FROM python:3.11-slim
 
 # Install build dependencies for OpenSSL + oqs-provider
