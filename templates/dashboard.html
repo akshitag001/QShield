@@ -1,0 +1,1693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Q-Shield | Cryptographic Inventory Scanner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --q-bg-a: #f8f8fa;
+            --q-bg-b: #f2f3f7;
+            --q-panel: rgba(255, 255, 255, 0.9);
+            --q-border: rgba(15, 23, 42, 0.08);
+            --q-text: #12131a;
+            --q-muted: #6b7280;
+            --q-primary: #111827;
+        }
+
+        body {
+            background: linear-gradient(180deg, var(--q-bg-a) 0%, var(--q-bg-b) 100%);
+            min-height: 100vh;
+            color: var(--q-text);
+            position: relative;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(500px 300px at 90% 20%, rgba(244, 114, 182, 0.12), transparent 70%),
+                radial-gradient(500px 300px at 8% 0%, rgba(148, 163, 184, 0.12), transparent 70%);
+            opacity: 0.65;
+        }
+
+        .glass-card {
+            background: var(--q-panel);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--q-border);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .quantum-glow {
+            box-shadow: 0 12px 28px rgba(17, 24, 39, 0.08);
+        }
+
+        .scan-input:focus {
+            box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.1);
+        }
+
+        .hero-visual {
+            position: relative;
+            background: transparent;
+            border: 0;
+            overflow: visible;
+            padding: 0;
+            min-height: 560px;
+            box-shadow: none;
+        }
+
+        .hero-visual::before {
+            content: "";
+            position: absolute;
+            inset: auto 14% 8% 20%;
+            height: 92px;
+            background: radial-gradient(ellipse at center, rgba(17, 24, 39, 0.18), transparent 74%);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .hero-visual::after {
+            content: none;
+        }
+
+        .hero-art {
+            width: 100%;
+            height: 100%;
+            min-height: 560px;
+            position: relative;
+            inset: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            z-index: 2;
+        }
+
+        .hero-art img {
+            width: auto;
+            max-width: 100%;
+            max-height: min(76vh, 680px);
+            height: auto;
+            display: block;
+            object-fit: contain;
+            object-position: center top;
+            transform: none;
+            filter: drop-shadow(0 18px 34px rgba(17, 24, 39, 0.18));
+        }
+
+        .hero-art-fallback {
+            display: none;
+        }
+
+        .hero-layout {
+            position: relative;
+            min-height: 620px;
+        }
+
+        .hero-copy {
+            width: min(760px, 62%);
+            padding-top: 58px;
+            position: relative;
+            z-index: 3;
+        }
+
+        .hero-visual-wrap {
+            position: absolute;
+            top: -78px;
+            right: -36px;
+            width: min(37vw, 470px);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .card-lift {
+            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+        }
+
+        .card-lift:hover {
+            transform: translateY(-2px);
+            border-color: rgba(17, 24, 39, 0.14);
+            box-shadow: 0 14px 28px rgba(17, 24, 39, 0.09);
+        }
+
+        .btn-primary {
+            background: #111827;
+            box-shadow: 0 8px 20px rgba(17, 24, 39, 0.18);
+            transition: all 0.28s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            background: #0b1220;
+            box-shadow: 0 12px 26px rgba(17, 24, 39, 0.25);
+        }
+
+        .btn-secondary {
+            background: #ffffff;
+            border: 1px solid rgba(17, 24, 39, 0.14);
+            transition: all 0.28s ease;
+        }
+
+        .btn-secondary:hover {
+            border-color: rgba(17, 24, 39, 0.28);
+            box-shadow: 0 8px 20px rgba(17, 24, 39, 0.08);
+
+        details.nav-dropdown > summary {
+            list-style: none;
+        }
+
+        details.nav-dropdown > summary::-webkit-details-marker {
+            display: none;
+        }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.55s ease both;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 1024px) {
+            .hero-layout {
+                min-height: auto;
+            }
+
+            .hero-copy {
+                width: 100%;
+                padding-top: 24px;
+            }
+
+            .hero-visual-wrap {
+                position: relative;
+                top: 0;
+                right: 0;
+                width: 100%;
+                margin-top: 10px;
+                pointer-events: auto;
+            }
+
+            .hero-visual {
+                min-height: 360px;
+            }
+
+            .hero-art {
+                min-height: 360px;
+            }
+
+            .hero-art img {
+                max-height: 390px;
+                width: auto;
+            }
+        }
+
+        .quantum-lattice-overlay {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at 18% 24%, rgba(201, 168, 101, 0.12), transparent 34%),
+                        radial-gradient(circle at 82% 78%, rgba(107, 114, 128, 0.10), transparent 42%),
+                        rgba(9, 9, 11, 0.88);
+            backdrop-filter: blur(2px);
+            z-index: 70;
+            display: none;
+        }
+
+        .quantum-lattice-overlay.active {
+            display: block;
+        }
+
+        #quantumLatticeCanvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .quantum-metadata-stream {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .quantum-meta-chip {
+            position: absolute;
+            color: #d4af6a;
+            font-size: 11px;
+            letter-spacing: 0.02em;
+            opacity: 0;
+            animation: quantumMetaFloat 1.25s ease-out forwards;
+            text-shadow: 0 0 12px rgba(212, 175, 106, 0.65);
+        }
+
+        @keyframes quantumMetaFloat {
+            0% { transform: translateY(10px) scale(0.94); opacity: 0; }
+            18% { opacity: 1; }
+            100% { transform: translateY(-26px) scale(1.02); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="font-sans text-gray-900">
+
+    <div id="quantumLatticeOverlay" class="quantum-lattice-overlay" aria-live="polite" aria-label="Scan in progress">
+        <canvas id="quantumLatticeCanvas"></canvas>
+        <div id="quantumMetadataStream" class="quantum-metadata-stream"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="sticky top-0 z-30 backdrop-blur-sm bg-white/70 border-b border-gray-200/70">
+        <div class="max-w-7xl mx-auto px-6 py-4">
+            <div class="glass-card rounded-2xl px-5 py-3 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 bg-gray-900 rounded-xl flex items-center justify-center shadow-sm">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                    </div>
+                    <span class="text-xl font-semibold text-gray-900">Q-Shield</span>
+                </div>
+                <div class="hidden md:flex items-center space-x-8 text-sm font-medium text-gray-500">
+                    <details class="nav-dropdown relative">
+                        <summary class="cursor-pointer hover:text-gray-900 transition">Scanner ▾</summary>
+                        <div class="absolute top-full left-0 mt-2 w-44 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-50">
+                            <a href="/#scanner" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Main Scanner</a>
+                            <a href="/vendors" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Vendor Scanner</a>
+                        </div>
+                    </details>
+                    <a href="#results" class="hover:text-gray-900 transition">Results</a>
+                    <a href="#history" class="hover:text-gray-900 transition">History</a>
+                    <a href="/scheduled-reporting" class="hover:text-gray-900 transition">Scheduled Reports</a>
+                    <a href="/learn" class="hover:text-gray-900 transition">Learn</a>
+                    {% if current_user.role in ['admin', 'cyber_lead', 'it_lead', 'security_head'] %}
+                    <a href="/logs" class="hover:text-gray-900 transition">Logs</a>
+                    {% endif %}
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="hidden sm:inline text-xs text-gray-500 px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200">
+                        {{ current_user.username }} ({{ current_user.role }})
+                    </span>
+                    <a href="/logout" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">
+                        Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="relative z-10 pt-8 pb-10 fade-in">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="hero-layout">
+                <div class="hero-copy text-left">
+                    <div class="inline-flex items-center px-4 py-2 bg-white border border-gray-200 rounded-full text-sm text-gray-600 font-medium mb-7">
+                        Post-Quantum Cryptographic Assessment
+                    </div>
+
+                    <h1 class="font-display text-5xl md:text-6xl font-semibold text-gray-900 mb-6 leading-[1.08]">
+                        Cryptographic Inventory<br/>
+                        <span class="text-gray-500 italic font-normal">for the Quantum Era</span>
+                    </h1>
+
+                    <p class="text-lg md:text-xl text-gray-500 max-w-2xl mb-10">
+                        Scan any endpoint. Discover cryptographic assets. Generate CBOM.
+                        <br/>Assess your quantum readiness in seconds.
+                    </p>
+
+                    <!-- Scanner Input -->
+                    <div id="scanner" class="max-w-2xl">
+                        <div class="glass-card quantum-glow rounded-2xl p-2.5 flex flex-col sm:flex-row gap-2.5">
+                            <input
+                                type="text"
+                                id="targetInput"
+                                placeholder="Enter domain or URL (e.g., example.com)"
+                                class="scan-input flex-1 px-5 py-4 bg-white rounded-xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none text-base"
+                            >
+                            <button
+                                id="scanBtn"
+                                onclick="startScan()"
+                                class="btn-primary px-8 py-4 text-white rounded-xl font-semibold duration-300 flex items-center justify-center min-w-[160px]"
+                            >
+                                <span id="scanBtnText">Scan Now</span>
+                                <svg id="scanSpinner" class="hidden w-5 h-5 ml-2 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="mt-4 flex flex-wrap gap-3">
+                            <a href="/docs" target="_blank" class="btn-secondary text-gray-800 px-5 py-2.5 rounded-xl text-sm font-medium">Documentation</a>
+                            <a href="#history" class="btn-secondary text-gray-800 px-5 py-2.5 rounded-xl text-sm font-medium">History</a>
+                        </div>
+
+                        <p id="scanStatus" class="hidden mt-4 text-gray-700 font-medium"></p>
+                    </div>
+                </div>
+
+                <div class="hero-visual-wrap">
+                    <div class="hero-visual">
+                        <div class="relative h-full flex items-center justify-center">
+                        <div class="hero-art">
+                            <img id="heroQuantumImage" src="/static/quantum-machine.png" alt="Quantum computer hardware" onerror="handleHeroImageError(this)">
+                        </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="relative z-10 py-12">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="glass-card card-lift rounded-2xl p-6 text-center">
+                    <p class="text-4xl font-bold text-gray-900" id="totalScans">{{ scan_count }}</p>
+                    <p class="text-sm text-gray-500 mt-1">Total Scans</p>
+                </div>
+                <div class="glass-card card-lift rounded-2xl p-6 text-center">
+                    <p class="text-4xl font-bold text-gray-500" id="quantumVulnerable">0</p>
+                    <p class="text-sm text-gray-500 mt-1">Quantum Vulnerable</p>
+                </div>
+                <div class="glass-card card-lift rounded-2xl p-6 text-center">
+                    <p class="text-4xl font-bold text-gray-600" id="quantumSafe">0</p>
+                    <p class="text-sm text-gray-500 mt-1">Quantum Safe</p>
+                </div>
+                <div class="glass-card card-lift rounded-2xl p-6 text-center">
+                    <p class="text-4xl font-bold text-gray-700" id="pqcReady">0</p>
+                    <p class="text-sm text-gray-500 mt-1">PQC Ready</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Results Section -->
+    <section id="results" class="relative z-10 py-12">
+        <div class="max-w-7xl mx-auto px-6">
+            <div id="scanResults" class="glass-card rounded-3xl p-8 card-lift fade-in">
+                <div class="text-center py-16">
+                    <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center">
+                        <svg class="w-10 h-10 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold text-gray-900 mb-2">Ready to Scan</h3>
+                    <p class="text-gray-500 max-w-md mx-auto">
+                        Enter a domain above to discover TLS configurations, certificate details, 
+                        cipher suites, and quantum vulnerability status.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Charts Section -->
+    <section class="relative z-10 py-12">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="glass-card card-lift rounded-3xl p-8">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                        <span class="w-3 h-3 rounded-full bg-gray-900 mr-3"></span>
+                        Quantum Readiness
+                    </h3>
+                    <div class="h-64">
+                        <canvas id="quantumChart"></canvas>
+                    </div>
+                </div>
+                <div class="glass-card card-lift rounded-3xl p-8">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                        <span class="w-3 h-3 rounded-full bg-gray-900 mr-3"></span>
+                        Security Strength
+                    </h3>
+                    <div class="h-64">
+                        <canvas id="strengthChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- History Section -->
+    <section id="history" class="relative z-10 py-12 pb-24">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="glass-card card-lift rounded-3xl p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                        <span class="w-3 h-3 rounded-full bg-gray-900 mr-3"></span>
+                        Scan History
+                    </h3>
+                    <div class="flex items-center gap-3">
+                        <button onclick="loadHistory()" class="text-sm text-gray-600 hover:text-gray-900 font-medium transition">
+                            Refresh
+                        </button>
+                        {% if current_user.role in ['admin', 'cyber_lead', 'it_lead', 'security_head'] %}
+                        <button onclick="clearHistory()" class="text-sm text-red-600 hover:text-red-700 font-medium transition">
+                            Clear History
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                <div id="scanHistory" class="space-y-3">
+                    {% if recent_scans %}
+                        {% for scan in recent_scans %}
+                        <div class="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition cursor-pointer" onclick="viewScan('{{ scan.scan_id }}')">
+                            <div class="flex items-center">
+                                <span class="w-2 h-2 rounded-full mr-4 {% if scan.status == 'completed' %}bg-emerald-400{% else %}bg-red-400{% endif %}"></span>
+                                <div>
+                                    <span class="font-medium text-gray-900">{{ scan.target }}</span>
+                                    {% if current_user.role in ['admin', 'cyber_lead', 'it_lead', 'security_head'] and scan.owner_username %}
+                                    <p class="text-xs text-gray-500">Scanned by: {{ scan.owner_username }}</p>
+                                    {% endif %}
+                                    <p class="text-xs text-gray-400">{{ scan.started_at[:19] }}</p>
+                                </div>
+                            </div>
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-gray-400 text-center py-8">No scan history yet. Start scanning to build your history.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="relative z-10 py-10 border-t border-gray-200">
+        <div class="max-w-7xl mx-auto px-6 text-center">
+            <p class="text-sm text-gray-500">
+                Q-Shield v1.0 — Cryptographic Bill of Materials Scanner
+            </p>
+            <p class="text-xs text-gray-400 mt-1">
+                Built for Post-Quantum Cryptographic Readiness Assessment
+            </p>
+        </div>
+    </footer>
+
+    <!-- Hidden download button for CBOM -->
+    <div id="downloadContainer" class="hidden fixed bottom-6 right-6 z-50">
+        <div class="flex gap-2">
+            <button onclick="downloadLatestCBOM('json')" class="btn-secondary text-gray-800 px-5 py-3 rounded-xl font-medium shadow-lg flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                JSON
+            </button>
+            <button onclick="downloadLatestCBOM('pdf')" class="btn-primary text-white px-5 py-3 rounded-xl font-medium shadow-lg flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                PDF
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let quantumChart, strengthChart;
+        let latestScanId = null;
+        let latestCbomData = null;
+        let latestVulnerabilityData = null;
+        let latestPrimaryTarget = null;
+        let latestDetectedSubdomains = [];
+        let latestCombinedCbom = null;
+        let quantumLattice = null;
+        const currentUserRole = "{{ current_user.role }}";
+        const adminRoles = ['admin', 'cyber_lead', 'it_lead', 'security_head'];
+        const isAdminRole = adminRoles.includes(currentUserRole);
+
+        class QuantumLatticeRenderer {
+            constructor(canvas, metadataContainer) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.metadataContainer = metadataContainer;
+                this.nodes = [];
+                this.edges = [];
+                this.pulses = [];
+                this.stage = 'handshake_discovery';
+                this.angle = 0;
+                this.collapse = 0;
+                this.stageSpeed = 1.5;
+                this.riskMode = false;
+                this.running = false;
+                this.lastFrame = 0;
+                this.scanProgress = 0;
+                this.targetProgress = 0;
+                this.resize();
+                this.buildLattice();
+            }
+
+            resize() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+            }
+
+            buildLattice() {
+                this.nodes = [];
+                const cols = 9;
+                const rows = 6;
+                const layerGap = 72;
+                for (let z = 0; z < 3; z++) {
+                    for (let y = 0; y < rows; y++) {
+                        for (let x = 0; x < cols; x++) {
+                            this.nodes.push({
+                                x: (x - cols / 2) * 102,
+                                y: (y - rows / 2) * 86,
+                                z: (z - 1) * layerGap,
+                                energy: 0,
+                                risk: false,
+                                focus: false,
+                            });
+                        }
+                    }
+                }
+                this.edges = [];
+                for (let i = 0; i < this.nodes.length; i++) {
+                    for (let j = i + 1; j < this.nodes.length; j++) {
+                        const a = this.nodes[i];
+                        const b = this.nodes[j];
+                        const dx = a.x - b.x;
+                        const dy = a.y - b.y;
+                        const dz = a.z - b.z;
+                        const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                        if (distance < 132) this.edges.push([i, j]);
+                    }
+                }
+            }
+
+            setStage(stage) {
+                this.stage = stage;
+                if (stage === 'handshake_discovery') {
+                    this.stageSpeed = 2.2;
+                    this.riskMode = false;
+                    this.targetProgress = 22;
+                } else if (stage === 'cipher_enumeration') {
+                    this.stageSpeed = 1.1;
+                    this.targetProgress = 48;
+                } else if (stage === 'quantum_safety_analysis') {
+                    this.stageSpeed = 0.9;
+                    this.riskMode = true;
+                    this.targetProgress = 74;
+                    this.nodes.forEach(node => { if (Math.random() < 0.21) node.risk = true; });
+                } else if (stage === 'agility_scoring') {
+                    this.stageSpeed = 0.6;
+                    this.targetProgress = 100;
+                }
+            }
+
+            setScanProgress(progress) {
+                this.targetProgress = Math.min(100, Math.max(0, progress));
+            }
+
+            addMetadata(snippet) {
+                if (!snippet || !this.metadataContainer) return;
+                const chip = document.createElement('div');
+                chip.className = 'quantum-meta-chip';
+                chip.textContent = String(snippet);
+                chip.style.left = `${12 + Math.random() * 76}%`;
+                chip.style.top = `${22 + Math.random() * 60}%`;
+                this.metadataContainer.appendChild(chip);
+                setTimeout(() => chip.remove(), 1350);
+            }
+
+            spawnPulse() {
+                if (!this.edges.length) return;
+                const edge = this.edges[Math.floor(Math.random() * this.edges.length)];
+                this.pulses.push({ edge, progress: 0, speed: (0.008 + Math.random() * 0.01) * this.stageSpeed });
+            }
+
+            project(node) {
+                const cx = this.canvas.width / 2;
+                const cy = this.canvas.height / 2;
+                const rotatedX = node.x * Math.cos(this.angle) - node.z * Math.sin(this.angle);
+                const rotatedZ = node.x * Math.sin(this.angle) + node.z * Math.cos(this.angle);
+                const depth = 420 / (420 + rotatedZ + 220);
+                const collapseScale = 1 - this.collapse * 0.82;
+                return {
+                    x: cx + rotatedX * depth * collapseScale,
+                    y: cy + node.y * depth * collapseScale,
+                    depth,
+                };
+            }
+
+            drawGauge() {
+                const ctx = this.ctx;
+                const cx = this.canvas.width / 2;
+                const cy = this.canvas.height / 2;
+                const radius = 92;
+                
+                // Background ring (static grey)
+                ctx.save();
+                ctx.strokeStyle = 'rgba(113,113,122,0.22)';
+                ctx.lineWidth = 12;
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Animated progress ring with color gradient (grey → gold)
+                const progressRatio = this.scanProgress / 100;
+                const endAngle = (-Math.PI / 2) + (Math.PI * 2 * progressRatio);
+                
+                // Color interpolation: grey (113,113,122) → gold (201,168,101)
+                const greyR = 113, greyG = 113, greyB = 122;
+                const goldR = 201, goldG = 168, goldB = 101;
+                const r = Math.round(greyR + (goldR - greyR) * progressRatio);
+                const g = Math.round(greyG + (goldG - greyG) * progressRatio);
+                const b = Math.round(greyB + (goldB - greyB) * progressRatio);
+                
+                ctx.strokeStyle = `rgba(${r},${g},${b},0.92)`;
+                ctx.shadowColor = `rgba(${r},${g},${b},0.48)`;
+                ctx.shadowBlur = 22;
+                ctx.lineWidth = 12;
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius, -Math.PI / 2, endAngle);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            render(ts) {
+                if (!this.running) return;
+                const delta = this.lastFrame ? (ts - this.lastFrame) : 16;
+                this.lastFrame = ts;
+                const ctx = this.ctx;
+                ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                this.angle += 0.0008 * delta;
+                
+                // Smoothly animate scanProgress towards targetProgress
+                const progressDiff = this.targetProgress - this.scanProgress;
+                if (Math.abs(progressDiff) > 0.5) {
+                    this.scanProgress += progressDiff * 0.08 * (delta / 16);
+                } else {
+                    this.scanProgress = this.targetProgress;
+                }
+                
+                if (this.stage === 'agility_scoring') {
+                    this.collapse = Math.min(1, this.collapse + 0.002 * delta);
+                } else {
+                    this.collapse = Math.max(0, this.collapse - 0.002 * delta);
+                }
+
+                if (Math.random() < 0.28 * this.stageSpeed) this.spawnPulse();
+
+                const projected = this.nodes.map(node => this.project(node));
+
+                ctx.lineWidth = 1;
+                for (const [aIdx, bIdx] of this.edges) {
+                    const a = projected[aIdx];
+                    const b = projected[bIdx];
+                    ctx.strokeStyle = 'rgba(161,161,170,0.20)';
+                    ctx.beginPath();
+                    ctx.moveTo(a.x, a.y);
+                    ctx.lineTo(b.x, b.y);
+                    ctx.stroke();
+                }
+
+                for (let i = this.pulses.length - 1; i >= 0; i--) {
+                    const pulse = this.pulses[i];
+                    pulse.progress += pulse.speed * (delta / 16);
+                    if (pulse.progress >= 1) {
+                        const hitNode = this.nodes[pulse.edge[1]];
+                        hitNode.energy = 1;
+                        this.pulses.splice(i, 1);
+                        continue;
+                    }
+                    const a = projected[pulse.edge[0]];
+                    const b = projected[pulse.edge[1]];
+                    const px = a.x + (b.x - a.x) * pulse.progress;
+                    const py = a.y + (b.y - a.y) * pulse.progress;
+                    ctx.fillStyle = this.riskMode ? 'rgba(196,148,74,0.96)' : 'rgba(216,216,216,0.92)';
+                    ctx.beginPath();
+                    ctx.arc(px, py, 4.1, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                this.nodes.forEach((node, idx) => {
+                    node.energy = Math.max(0, node.energy - 0.02 * (delta / 16));
+                    const p = projected[idx];
+                    let fill = 'rgba(113,113,122,0.78)';
+                    if (node.risk && this.riskMode) fill = 'rgba(161,120,58,0.90)';
+                    if (node.energy > 0.3) fill = 'rgba(229,229,229,0.95)';
+                    if (this.stage === 'agility_scoring' && this.collapse > 0.72) fill = 'rgba(201,168,101,0.96)';
+                    ctx.fillStyle = fill;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 2.9 + node.energy * 2.7, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                // Draw gauge throughout entire scan, not just final stage
+                this.drawGauge();
+
+                requestAnimationFrame(this.render.bind(this));
+            }
+
+            start() {
+                if (this.running) return;
+                this.running = true;
+                this.lastFrame = 0;
+                this.buildLattice();
+                requestAnimationFrame(this.render.bind(this));
+            }
+
+            stop() {
+                this.running = false;
+                this.pulses = [];
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const latticeCanvas = document.getElementById('quantumLatticeCanvas');
+            const metadataStream = document.getElementById('quantumMetadataStream');
+            quantumLattice = new QuantumLatticeRenderer(latticeCanvas, metadataStream);
+            window.addEventListener('resize', () => quantumLattice && quantumLattice.resize());
+
+            initCharts();
+            refreshDashboardData();
+
+            if (currentUserRole === 'viewer') {
+                const scanBtn = document.getElementById('scanBtn');
+                scanBtn.disabled = true;
+                scanBtn.classList.add('opacity-60', 'cursor-not-allowed');
+                document.getElementById('scanStatus').textContent = 'Viewer role can view history and reports but cannot run scans.';
+                document.getElementById('scanStatus').classList.remove('hidden');
+            }
+        });
+
+        function showQuantumLatticeOverlay(target) {
+            const overlay = document.getElementById('quantumLatticeOverlay');
+            document.getElementById('quantumMetadataStream').innerHTML = '';
+            quantumLattice && quantumLattice.addMetadata(`Target ${target}`);
+            overlay.classList.add('active');
+            quantumLattice && quantumLattice.setStage('handshake_discovery');
+            quantumLattice && quantumLattice.start();
+        }
+
+        function hideQuantumLatticeOverlay() {
+            const overlay = document.getElementById('quantumLatticeOverlay');
+            overlay.classList.remove('active');
+            quantumLattice && quantumLattice.stop();
+        }
+
+        function updateQuantumLatticeStage(payload) {
+            const stage = payload.stage || 'handshake_discovery';
+            quantumLattice && quantumLattice.setStage(stage);
+
+            const snippets = (payload.metadata && payload.metadata.snippets) ? payload.metadata.snippets : [];
+            snippets.slice(0, 4).forEach(snippet => quantumLattice && quantumLattice.addMetadata(snippet));
+        }
+
+        function runStagedScan(target, timeout = 15) {
+            return new Promise((resolve, reject) => {
+                const streamUrl = `/api/scan/stream?target=${encodeURIComponent(target)}&timeout=${encodeURIComponent(timeout)}`;
+                const source = new EventSource(streamUrl);
+                let completed = false;
+                let sawStageEvent = false;
+
+                source.addEventListener('stage', (event) => {
+                    sawStageEvent = true;
+                    try {
+                        updateQuantumLatticeStage(JSON.parse(event.data));
+                    } catch (_) {}
+                });
+
+                source.addEventListener('completed', (event) => {
+                    completed = true;
+                    source.close();
+                    try {
+                        resolve(JSON.parse(event.data));
+                    } catch (err) {
+                        reject(err);
+                    }
+                });
+
+                source.addEventListener('scan_error', (event) => {
+                    source.close();
+                    try {
+                        const data = JSON.parse(event.data);
+                        reject(new Error(humanizeScanError(data.detail || 'Scan failed'))); 
+                    } catch (_) {
+                        reject(new Error('Scan failed'));
+                    }
+                });
+
+                source.onerror = () => {
+                    if (!completed) {
+                        source.close();
+                        if (!sawStageEvent) {
+                            reject(new Error('Unable to start scan for this target. Check domain format (e.g., example.com or rru.ac.in).'));
+                            return;
+                        }
+                        reject(new Error('Scan stream interrupted. Please retry.'));
+                    }
+                };
+            });
+        }
+
+        function validateTargetInput(target) {
+            const value = String(target || '').trim();
+            if (!value) return { valid: false, message: 'Please enter a target domain or URL' };
+
+            let host = value;
+            try {
+                if (value.includes('://')) {
+                    host = new URL(value).hostname || '';
+                } else if (value.startsWith('[')) {
+                    const ipv6Match = value.match(/^\[(.+)\](?::\d+)?$/);
+                    host = ipv6Match ? ipv6Match[1] : value;
+                } else if (value.includes(':') && value.split(':').length === 2 && /^\d+$/.test(value.split(':')[1])) {
+                    host = value.split(':')[0];
+                }
+            } catch (_) {
+                return { valid: false, message: 'Invalid target format. Use a valid host like example.com or rru.ac.in' };
+            }
+
+            const trimmedHost = host.trim().replace(/\.$/, '');
+            if (!trimmedHost) {
+                return { valid: false, message: 'Invalid target format. Use a valid host like example.com or rru.ac.in' };
+            }
+
+            if (trimmedHost.toLowerCase() === 'localhost') {
+                return { valid: true };
+            }
+
+            const ipv4Regex = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
+            if (ipv4Regex.test(trimmedHost)) {
+                return { valid: true };
+            }
+
+            if (!trimmedHost.includes('.')) {
+                return { valid: false, message: 'Invalid or unresolvable domain. Use a valid hostname like example.com or rru.ac.in' };
+            }
+
+            const labels = trimmedHost.split('.');
+            const labelRegex = /^[A-Za-z0-9-]{1,63}$/;
+            for (const label of labels) {
+                if (!labelRegex.test(label) || label.startsWith('-') || label.endsWith('-')) {
+                    return { valid: false, message: 'Invalid domain format. Use a valid hostname like example.com or rru.ac.in' };
+                }
+            }
+
+            const tld = labels[labels.length - 1];
+            const tldValid = /^([A-Za-z]{2,63}|xn--[A-Za-z0-9-]{2,59})$/.test(tld);
+            if (!tldValid) {
+                return { valid: false, message: 'Invalid domain ending. Use a valid hostname like example.com or rru.ac.in' };
+            }
+
+            return { valid: true };
+        }
+
+        function humanizeScanError(message) {
+            const text = String(message || '').trim();
+            const lowered = text.toLowerCase();
+
+            if (
+                lowered.includes('getaddrinfo failed') ||
+                lowered.includes('name or service not known') ||
+                lowered.includes('domain could not be resolved') ||
+                lowered.includes('invalid target')
+            ) {
+                return 'Invalid or unresolvable domain. Use a valid hostname like example.com or rru.ac.in';
+            }
+
+            return text || 'Scan failed';
+        }
+
+        function handleHeroImageError(img) {
+            const candidates = [
+                '/static/quantum-machine.png',
+                '/static/quantum-machine.jpg',
+                '/static/quantum-machine.jpeg',
+                '/static/quantum-machine.webp',
+                '/static/quantum_machine.png',
+                '/static/quantum_machine.jpg',
+                '/static/quantum-computer.png',
+                '/static/quantum-computer.jpg'
+            ];
+
+            const current = img.getAttribute('src');
+            const currentIndex = candidates.indexOf(current);
+            const nextIndex = currentIndex + 1;
+
+            if (nextIndex < candidates.length) {
+                img.setAttribute('src', candidates[nextIndex]);
+                return;
+            }
+
+            img.style.display = 'none';
+            if (img.parentElement) {
+                img.parentElement.classList.add('hero-art-fallback');
+            }
+        }
+
+        function refreshDashboardData() {
+            refreshStats();
+            loadHistory();
+        }
+
+        async function loadHistory() {
+            const historyContainer = document.getElementById('scanHistory');
+            if (!historyContainer) return;
+
+            try {
+                const response = await fetch('/api/history?limit=50');
+                if (!response.ok) {
+                    historyContainer.innerHTML = '<p class="text-gray-500 text-sm">Unable to load scan history.</p>';
+                    return;
+                }
+
+                const data = await response.json();
+                const scans = data.scans || [];
+                if (!scans.length) {
+                    historyContainer.innerHTML = '<p class="text-gray-400 text-center py-8">No scan history yet. Start scanning to build your history.</p>';
+                    return;
+                }
+
+                historyContainer.innerHTML = scans.map(scan => `
+                    <div class="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition cursor-pointer" onclick="viewScan('${scan.scan_id}')">
+                        <div class="flex items-center">
+                            <span class="w-2 h-2 rounded-full mr-4 ${scan.status === 'completed' ? 'bg-emerald-400' : 'bg-red-400'}"></span>
+                            <div>
+                                <span class="font-medium text-gray-900">${scan.target}</span>
+                                ${isAdminRole && scan.owner_username ? `<p class="text-xs text-gray-500">Scanned by: ${scan.owner_username}</p>` : ''}
+                                <p class="text-xs text-gray-400">${(scan.started_at || '').substring(0, 19)}</p>
+                            </div>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </div>
+                `).join('');
+            } catch (error) {
+                historyContainer.innerHTML = '<p class="text-gray-500 text-sm">Error while loading scan history.</p>';
+            }
+        }
+
+        async function clearHistory() {
+            if (!isAdminRole) {
+                alert('Only admin/lead roles can clear history.');
+                return;
+            }
+
+            if (!confirm('Clear all scan history records?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/history/clear', { method: 'DELETE' });
+                const data = await response.json();
+                if (!response.ok) {
+                    alert(`Failed to clear history: ${data.detail || 'Unknown error'}`);
+                    return;
+                }
+                await loadHistory();
+                refreshStats();
+                alert(data.message || 'History cleared successfully.');
+            } catch (error) {
+                alert(`Error clearing history: ${error.message}`);
+            }
+        }
+
+        function initCharts() {
+            const chartDefaults = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { 
+                            color: '#6B7280',
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    }
+                }
+            };
+
+            quantumChart = new Chart(document.getElementById('quantumChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Vulnerable', 'Safe'],
+                    datasets: [{
+                        data: [0, 0],
+                        backgroundColor: ['#EF4444', '#10B981'],
+                        borderWidth: 0,
+                        spacing: 2
+                    }]
+                },
+                options: { ...chartDefaults, cutout: '70%' }
+            });
+
+            strengthChart = new Chart(document.getElementById('strengthChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Strong', 'Acceptable', 'Weak', 'Broken'],
+                    datasets: [{
+                        data: [0, 0, 0, 0],
+                        backgroundColor: ['#10B981', '#F59E0B', '#F97316', '#EF4444'],
+                        borderWidth: 0,
+                        spacing: 2
+                    }]
+                },
+                options: { ...chartDefaults, cutout: '70%' }
+            });
+        }
+
+        async function startScan() {
+            if (currentUserRole === 'viewer') {
+                alert('Your role does not allow running scans. Contact an admin for analyst/admin access.');
+                return;
+            }
+
+            const target = document.getElementById('targetInput').value.trim();
+            if (!target) {
+                alert('Please enter a target domain or URL');
+                return;
+            }
+
+            const targetValidation = validateTargetInput(target);
+            if (!targetValidation.valid) {
+                alert(targetValidation.message || 'Invalid target format');
+                return;
+            }
+
+            const btn = document.getElementById('scanBtn');
+            const btnText = document.getElementById('scanBtnText');
+            const spinner = document.getElementById('scanSpinner');
+            const status = document.getElementById('scanStatus');
+
+            btn.disabled = true;
+            btnText.textContent = 'Scanning...';
+            spinner.classList.remove('hidden');
+            status.textContent = `Analyzing ${target}...`;
+            status.classList.remove('hidden');
+            showQuantumLatticeOverlay(target);
+
+            try {
+                const data = await runStagedScan(target, 15);
+                latestScanId = data.scan_id;
+                latestCbomData = data.cbom || null;
+                latestVulnerabilityData = data.vulnerabilities || null;
+                displayScanResult(data.result, latestVulnerabilityData);
+                setStatsFromCbom(latestCbomData);
+                loadHistory();
+                document.getElementById('downloadContainer').classList.remove('hidden');
+            } catch (error) {
+                alert('Error: ' + humanizeScanError(error.message));
+            } finally {
+                btn.disabled = false;
+                btnText.textContent = 'Scan Now';
+                spinner.classList.add('hidden');
+                status.classList.add('hidden');
+                setTimeout(() => hideQuantumLatticeOverlay(), 260);
+            }
+        }
+
+        function displayScanResult(result, vulnerabilityData = null) {
+            const container = document.getElementById('scanResults');
+            
+            const tlsBadgeColor = (v) => {
+                if (v === 'TLSv1.3') return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+                if (v === 'TLSv1.2') return 'bg-amber-50 text-amber-700 border border-amber-200';
+                return 'bg-rose-50 text-rose-700 border border-rose-200';
+            };
+
+            const hndlRisk = result.hndl_risk || {};
+            const hndlLevel = (hndlRisk.level || 'UNKNOWN').toUpperCase();
+            const hndlTone = hndlLevel === 'HIGH'
+                ? 'bg-red-50 text-red-700 border border-red-200'
+                : hndlLevel === 'MEDIUM'
+                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+
+            const agility = result.crypto_agility_score || { score: 0, max_score: 100, factors: [] };
+            const migrationAdvisor = result.migration_advisor || { recommendations: [] };
+            const ctIntel = result.ct_intelligence || { detected_subdomains: [], total_detected: 0, status: 'not_available' };
+            const pqcDetection = result.pqc_detection || { checks: [], summary: { detected_count: 0, total_checks: 0 } };
+            const ocsp = result.ocsp || { status: 'CHECK FAILED', checked: false, responder: null, latency: null, stapling: null };
+            const pqcSupport = result.security_features?.pqc_support || {};
+            const pqcDetectionMethod = pqcSupport.detection_method || 'unknown';
+            const pqcOpenSslVersion = pqcSupport.openssl_version || 'not available';
+
+            const ocspStatus = (ocsp.status || 'CHECK FAILED').toUpperCase();
+            const ocspBadgeTone = ocspStatus === 'GOOD'
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                : ocspStatus === 'REVOKED'
+                    ? 'bg-red-50 text-red-700 border border-red-200'
+                    : ocspStatus === 'UNKNOWN'
+                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                        : ocspStatus === 'NOT SUPPORTED'
+                            ? 'bg-gray-100 text-gray-700 border border-gray-200'
+                            : 'bg-orange-50 text-orange-700 border border-orange-200';
+
+            const ocspCheckedText = ocsp.checked ? 'Yes' : 'No';
+            const ocspResponderText = ocsp.responder || 'Not available';
+            const ocspLatencyText = Number.isFinite(ocsp.latency) ? `${ocsp.latency} ms` : 'N/A';
+            const ocspStaplingText = ocsp.stapling === true ? 'Supported' : ocsp.stapling === false ? 'Not Supported' : 'Unknown';
+
+            const agilityFactorsHtml = (agility.factors || []).map(f => `
+                <tr class="border-b border-gray-100">
+                    <td class="py-2 text-gray-700">${f.name}</td>
+                    <td class="py-2 text-gray-500">${f.weight}</td>
+                    <td class="py-2 text-gray-900 font-medium">${f.score}</td>
+                </tr>
+            `).join('');
+
+            const migrationHtml = (migrationAdvisor.recommendations || []).length
+                ? migrationAdvisor.recommendations.map(item => `
+                    <div class="bg-white border border-gray-200 rounded-xl p-4">
+                        <p class="text-xs text-gray-500 mb-1">${item.category}</p>
+                        <p class="text-sm text-gray-700"><span class="font-medium">Current:</span> ${item.current || 'N/A'}</p>
+                        <p class="text-sm text-gray-900"><span class="font-medium">Future:</span> ${item.future || 'N/A'}</p>
+                    </div>
+                `).join('')
+                : '<p class="text-sm text-gray-500">No migration guidance available for this scan.</p>';
+
+            const subdomainCount = (ctIntel.detected_subdomains || []).length;
+            const subdomainStatusText = subdomainCount
+                ? `Detected ${ctIntel.total_detected || subdomainCount} subdomains from CT intelligence.`
+                : `No subdomains found or source unavailable (${ctIntel.status || 'unknown'}).`;
+
+            const pqcRowsHtml = (pqcDetection.checks || []).map(item => `
+                <tr class="border-b border-gray-100">
+                    <td class="py-2 text-gray-700">${item.algorithm}</td>
+                    <td class="py-2 text-gray-500">${item.check}</td>
+                    <td class="py-2 ${item.detected ? 'text-emerald-700' : 'text-gray-500'} font-medium">${item.detected ? 'Detected' : 'Not Detected'}</td>
+                </tr>
+            `).join('');
+            
+            container.innerHTML = `
+                <div class="flex items-center justify-between mb-8">
+                    <div>
+                        <h3 class="text-2xl font-bold text-gray-900">${result.host}</h3>
+                        <p class="text-gray-500">${result.ip_address}:${result.port}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        ${result.tls_versions_supported.map(v => `<span class="px-3 py-1 rounded-full text-sm font-medium ${tlsBadgeColor(v)}">${v}</span>`).join('')}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-gray-50 border border-gray-200 rounded-2xl p-6">
+                        <p class="text-sm text-gray-600 font-medium mb-2">Certificate</p>
+                        <p class="font-semibold text-gray-900 text-lg break-all">${result.certificate?.subject || 'N/A'}</p>
+                        <p class="text-sm text-gray-500 mt-2">Issued by ${result.certificate?.issuer || 'N/A'}</p>
+                    </div>
+                    <div class="bg-gray-50 border border-gray-200 rounded-2xl p-6">
+                        <p class="text-sm text-gray-600 font-medium mb-2">Public Key</p>
+                        <p class="font-semibold text-gray-900 text-lg">${result.certificate?.public_key_algorithm || 'N/A'}</p>
+                        <p class="text-sm text-gray-500 mt-2">${result.certificate?.public_key_size || '-'} bits</p>
+                    </div>
+                    <div class="bg-gray-50 border border-gray-200 rounded-2xl p-6">
+                        <p class="text-sm text-gray-600 font-medium mb-2">Validity</p>
+                        <p class="font-semibold text-gray-900 text-lg">${result.certificate?.valid_to?.substring(0, 10) || 'N/A'}</p>
+                        <p class="text-sm text-gray-500 mt-2">Signature: ${result.certificate?.signature_algorithm || 'N/A'}</p>
+                    </div>
+                </div>
+
+                <div class="mb-8">
+                    <div class="flex items-center gap-3 mb-4">
+                        <h4 class="font-semibold text-gray-900">Security Features</h4>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        ${result.security_features?.forward_secrecy ? '<span class="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-sm font-medium">✓ Forward Secrecy</span>' : '<span class="px-4 py-2 bg-gray-100 text-gray-500 border border-gray-200 rounded-full text-sm">✗ No Forward Secrecy</span>'}
+                        ${pqcSupport.supported ? '<span class="px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-sm font-medium">✓ PQC Ready</span>' : '<span class="px-4 py-2 bg-gray-100 text-gray-500 border border-gray-200 rounded-full text-sm">✗ Not PQC Ready</span>'}
+                        ${(result.key_exchange_details?.algorithm || '').toUpperCase().includes('MLKEM') || (result.key_exchange_details?.algorithm || '').toUpperCase().includes('KYBER') ? '<span class="px-4 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-sm font-medium">✓ Hybrid Key Exchange Detected</span>' : '<span class="px-4 py-2 bg-gray-100 text-gray-500 border border-gray-200 rounded-full text-sm">• Hybrid Key Exchange Not Observed</span>'}
+                        ${result.security_features?.weak_ciphers_detected ? '<span class="px-4 py-2 bg-red-50 text-red-700 border border-red-200 rounded-full text-sm font-medium">⚠ Weak Ciphers</span>' : '<span class="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-sm font-medium">✓ Strong Ciphers Only</span>'}
+                    </div>
+                    <p class="text-sm text-gray-600 mt-3"><span class="font-medium">Negotiated Key Exchange:</span> ${result.key_exchange_details?.algorithm || 'Unavailable in current probe'}</p>
+                    <p class="text-sm text-gray-600 mt-1"><span class="font-medium">PQC Detection Engine:</span> ${pqcDetectionMethod} | <span class="font-medium">OpenSSL:</span> ${pqcOpenSslVersion}</p>
+                </div>
+
+                <div class="mb-8 bg-gray-50 border border-gray-200 rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="font-semibold text-gray-900">Certificate Trust Status</h4>
+                        <span class="px-3 py-1 rounded-full text-xs font-medium ${ocspBadgeTone}">${ocspStatus}</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <p class="text-gray-700"><span class="font-medium">OCSP Checked:</span> ${ocspCheckedText}</p>
+                        <p class="text-gray-700"><span class="font-medium">Latency:</span> ${ocspLatencyText}</p>
+                        <p class="text-gray-700 md:col-span-2 break-all"><span class="font-medium">Responder URL:</span> ${ocspResponderText}</p>
+                        <p class="text-gray-700"><span class="font-medium">OCSP Stapling:</span> ${ocspStaplingText}</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-gray-50 border border-gray-200 rounded-2xl p-6">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="font-semibold text-gray-900">HNDL Risk</h4>
+                            <span class="px-3 py-1 rounded-full text-xs font-medium ${hndlTone}">${hndlLevel}</span>
+                        </div>
+                        <p class="text-sm text-gray-700 mb-2"><span class="font-medium">Reason:</span> ${hndlRisk.reason || 'N/A'}</p>
+                        <p class="text-sm text-gray-500">${hndlRisk.explanation || 'No explanation available.'}</p>
+                    </div>
+
+                    <div class="bg-gray-50 border border-gray-200 rounded-2xl p-6">
+                        <h4 class="font-semibold text-gray-900 mb-2">Crypto Agility Score</h4>
+                        <p class="text-3xl font-bold text-gray-900 mb-3">${agility.score || 0} / ${agility.max_score || 100}</p>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="text-left text-gray-500 border-b border-gray-200">
+                                        <th class="pb-2 font-medium">Factor</th>
+                                        <th class="pb-2 font-medium">Weight</th>
+                                        <th class="pb-2 font-medium">Score</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${agilityFactorsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-8 bg-gray-50 border border-gray-200 rounded-2xl p-6">
+                    <h4 class="font-semibold text-gray-900 mb-4">Recommended Migration Path</h4>
+                    <div class="space-y-3">${migrationHtml}</div>
+                    <p class="text-xs text-gray-500 mt-3">${migrationAdvisor.standards_reference || ''}</p>
+                </div>
+
+                <div class="mb-8 bg-gray-50 border border-gray-200 rounded-2xl p-6">
+                    <h4 class="font-semibold text-gray-900 mb-3">Certificate Transparency Intelligence</h4>
+                    <p class="text-sm text-gray-700 mb-3">${subdomainStatusText}</p>
+                    <div id="subdomainSelectionPanel" class="space-y-4">
+                        <div id="subdomainSelectionList"></div>
+                        <div class="flex flex-wrap gap-2">
+                            <button id="selectAllSubdomainsBtn" onclick="selectAllDiscoveredSubdomains()" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Select All</button>
+                            <button id="clearSubdomainsBtn" onclick="clearSubdomainSelection()" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Clear</button>
+                            <button id="scanSelectedSubdomainsBtn" onclick="scanSelectedSubdomains(false)" class="btn-primary text-white px-4 py-2 rounded-xl text-sm font-medium">Scan Selected</button>
+                            <button id="scanAllSubdomainsBtn" onclick="scanSelectedSubdomains(true)" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Scan All + Parent</button>
+                        </div>
+                    </div>
+                    <div id="subdomainScanOutput" class="mt-5"></div>
+                </div>
+
+                <div class="mb-8 bg-gray-50 border border-gray-200 rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="font-semibold text-gray-900">Real PQC Detection</h4>
+                        <span class="px-3 py-1 rounded-full text-xs font-medium bg-white border border-gray-200 text-gray-700">${pqcDetection.summary?.detected_count || 0} / ${pqcDetection.summary?.total_checks || 0} detected</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-gray-500 border-b border-gray-200">
+                                    <th class="pb-2 font-medium">PQC</th>
+                                    <th class="pb-2 font-medium">Check</th>
+                                    <th class="pb-2 font-medium">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${pqcRowsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Quantum Vulnerabilities Section -->
+                <div id="quantumVulnSection" class="mb-8 bg-gray-50 border border-gray-200 rounded-2xl p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <span class="w-3 h-3 rounded-full bg-red-500"></span>
+                        <h4 class="font-semibold text-gray-900">Quantum Vulnerabilities</h4>
+                        <span id="vulnCount" class="px-2 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded-full text-xs font-medium">Loading...</span>
+                    </div>
+                    <div id="vulnDetails" class="space-y-3">
+                        <p class="text-gray-600 text-sm">Analyzing quantum vulnerabilities...</p>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="font-semibold text-gray-900 mb-4">Cipher Suites <span class="text-gray-500 font-normal">(${result.cipher_suites?.length || 0})</span></h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="text-left text-sm text-gray-500 border-b border-gray-200">
+                                    <th class="pb-3 font-medium">TLS</th>
+                                    <th class="pb-3 font-medium">Cipher Suite</th>
+                                    <th class="pb-3 font-medium">Key Exchange</th>
+                                    <th class="pb-3 font-medium">Encryption</th>
+                                    <th class="pb-3 font-medium">Hash</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm">
+                                ${(result.cipher_suites || []).slice(0, 8).map(cs => `
+                                    <tr class="border-b border-gray-100">
+                                        <td class="py-3 text-gray-600">${cs.tls_version || '-'}</td>
+                                        <td class="py-3 font-mono text-xs text-gray-700">${cs.cipher_suite}</td>
+                                        <td class="py-3 text-gray-600">${cs.key_exchange || '-'}</td>
+                                        <td class="py-3 text-gray-600">${cs.encryption || '-'}</td>
+                                        <td class="py-3 text-gray-600">${cs.hash || '-'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                        ${(result.cipher_suites?.length || 0) > 8 ? `<p class="text-center text-gray-500 text-sm mt-4">+ ${result.cipher_suites.length - 8} more cipher suites</p>` : ''}
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+
+            latestPrimaryTarget = result.host;
+            latestDetectedSubdomains = (ctIntel.detected_subdomains || []).slice();
+            renderSubdomainSelection();
+            
+            // Display vulnerabilities from same scan response (works reliably on serverless)
+            if (vulnerabilityData) {
+                renderQuantumVulnerabilities(vulnerabilityData);
+            } else if (latestScanId) {
+                loadQuantumVulnerabilities(latestScanId);
+            }
+        }
+
+        function renderSubdomainSelection() {
+            const listContainer = document.getElementById('subdomainSelectionList');
+            if (!listContainer) return;
+
+            if (!latestDetectedSubdomains.length) {
+                listContainer.innerHTML = '<p class="text-sm text-gray-500">No selectable subdomains available in this scan.</p>';
+                return;
+            }
+
+            listContainer.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    ${latestDetectedSubdomains.map(sub => `
+                        <label class="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700">
+                            <input type="checkbox" class="subdomain-checkbox" value="${sub}" checked>
+                            <span>${sub}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function selectAllDiscoveredSubdomains() {
+            document.querySelectorAll('.subdomain-checkbox').forEach(cb => cb.checked = true);
+        }
+
+        function clearSubdomainSelection() {
+            document.querySelectorAll('.subdomain-checkbox').forEach(cb => cb.checked = false);
+        }
+
+        function getSelectedSubdomains() {
+            const selected = [];
+            document.querySelectorAll('.subdomain-checkbox:checked').forEach(cb => {
+                selected.push(cb.value);
+            });
+            return selected;
+        }
+
+        async function scanSelectedSubdomains(scanAll) {
+            if (currentUserRole === 'viewer') {
+                alert('Viewer role cannot run scans.');
+                return;
+            }
+            if (!latestPrimaryTarget) {
+                alert('Run a primary domain scan first.');
+                return;
+            }
+
+            const output = document.getElementById('subdomainScanOutput');
+            const selected = scanAll ? latestDetectedSubdomains.slice() : getSelectedSubdomains();
+            if (!selected.length) {
+                alert('Select at least one subdomain to scan.');
+                return;
+            }
+
+            output.innerHTML = '<p class="text-sm text-gray-600">Running subdomain scan...</p>';
+
+            try {
+                const response = await fetch('/api/scan/subdomains', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        parent_target: latestPrimaryTarget,
+                        subdomains: selected,
+                        include_parent: true,
+                        timeout: 15
+                    })
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    output.innerHTML = `<p class="text-sm text-red-600">Subdomain scan failed: ${data.detail || 'Unknown error'}</p>`;
+                    return;
+                }
+
+                latestCombinedCbom = data.cbom || null;
+                setStatsFromCbom(latestCombinedCbom);
+                renderSubdomainScanReport(data);
+            } catch (error) {
+                output.innerHTML = `<p class="text-sm text-red-600">Subdomain scan failed: ${error.message}</p>`;
+            }
+        }
+
+        function setStatsFromCbom(cbom) {
+            const summary = (cbom && cbom.summary) ? cbom.summary : {};
+            const totalEndpoints = summary.total_endpoints || 0;
+            const quantumVulnerable = summary.quantum_vulnerable_assets || 0;
+            const quantumSafe = summary.quantum_safe_assets || 0;
+            const pqcReady = summary.endpoints_pqc_ready || 0;
+
+            document.getElementById('totalScans').textContent = totalEndpoints;
+            document.getElementById('quantumVulnerable').textContent = quantumVulnerable;
+            document.getElementById('quantumSafe').textContent = quantumSafe;
+            document.getElementById('pqcReady').textContent = pqcReady;
+
+            const quantumVulnerableEl = document.getElementById('quantumVulnerable');
+            const quantumSafeEl = document.getElementById('quantumSafe');
+            if (totalEndpoints > 0) {
+                quantumVulnerableEl.className = 'text-4xl font-bold text-rose-500';
+                quantumSafeEl.className = 'text-4xl font-bold text-emerald-600';
+            } else {
+                quantumVulnerableEl.className = 'text-4xl font-bold text-gray-500';
+                quantumSafeEl.className = 'text-4xl font-bold text-gray-600';
+            }
+
+            if (quantumChart) {
+                quantumChart.data.datasets[0].data = [quantumVulnerable, quantumSafe];
+                quantumChart.update();
+            }
+
+            const strength = summary.assets_by_strength || {};
+            if (strengthChart) {
+                strengthChart.data.datasets[0].data = [
+                    strength.strong || 0,
+                    strength.acceptable || 0,
+                    strength.weak || 0,
+                    strength.broken || 0
+                ];
+                strengthChart.update();
+            }
+        }
+
+        function renderSubdomainScanReport(data) {
+            const output = document.getElementById('subdomainScanOutput');
+            const vulnerabilities = data.vulnerabilities || { total_vulnerabilities: 0 };
+            const endpoints = (data.cbom && data.cbom.endpoints) ? data.cbom.endpoints : [];
+
+            output.innerHTML = `
+                <div class="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <h5 class="font-semibold text-gray-900">Subdomain Scan Report</h5>
+                        <button onclick="downloadCombinedCbom()" class="btn-secondary text-gray-800 px-3 py-1.5 rounded-lg text-sm font-medium">Download Combined CBOM</button>
+                    </div>
+                    <p class="text-sm text-gray-700">Requested: ${data.total_targets_requested} | Success: ${data.successful_scans} | Failed: ${data.failed_scans}</p>
+                    <p class="text-sm text-gray-700">Quantum vulnerabilities across selected scope: ${vulnerabilities.total_vulnerabilities || 0}</p>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-gray-500 border-b border-gray-200">
+                                    <th class="pb-2 font-medium">Endpoint</th>
+                                    <th class="pb-2 font-medium">TLS Versions</th>
+                                    <th class="pb-2 font-medium">Weak Crypto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${endpoints.map(ep => `
+                                    <tr class="border-b border-gray-100">
+                                        <td class="py-2 text-gray-900">${ep.endpoint || '-'}</td>
+                                        <td class="py-2 text-gray-600">${(ep.tls_versions || []).join(', ') || '-'}</td>
+                                        <td class="py-2 text-gray-600">${ep.weak_crypto_detected ? 'Yes' : 'No'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function downloadCombinedCbom() {
+            if (!latestCombinedCbom) {
+                alert('No combined CBOM available. Run subdomain scan first.');
+                return;
+            }
+            const blob = new Blob([JSON.stringify(latestCombinedCbom, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const name = (latestPrimaryTarget || 'combined').replace(/[^a-zA-Z0-9._-]/g, '_');
+            a.href = url;
+            a.download = `cbom_combined_${name}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function renderQuantumVulnerabilities(data) {
+            const vulnCount = document.getElementById('vulnCount');
+            const vulnDetails = document.getElementById('vulnDetails');
+
+            if (!vulnCount || !vulnDetails) return;
+            vulnCount.textContent = data.total_vulnerabilities;
+
+            if (data.total_vulnerabilities === 0) {
+                vulnDetails.innerHTML = '<p class="text-emerald-700 font-medium">No quantum vulnerabilities detected - this endpoint is quantum-safe!</p>';
+                document.getElementById('quantumVulnSection').className = 'mb-8 bg-emerald-50 border border-emerald-200 rounded-2xl p-6';
+                vulnCount.className = 'px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-medium';
+                return;
+            }
+
+            const riskColors = {
+                'CRITICAL': 'bg-red-500',
+                'HIGH': 'bg-orange-500',
+                'MEDIUM': 'bg-amber-500',
+                'LOW': 'bg-gray-400'
+            };
+
+            let html = '<div class="space-y-3">';
+
+            const grouped = {};
+            data.vulnerabilities.forEach(v => {
+                const type = v.asset_type || 'other';
+                if (!grouped[type]) grouped[type] = [];
+                grouped[type].push(v);
+            });
+
+            for (const [type, vulns] of Object.entries(grouped)) {
+                html += `
+                    <div class="bg-white border border-gray-200 rounded-xl p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="font-medium text-gray-900 capitalize">${type.replace('_', ' ')}</span>
+                            <span class="text-xs text-gray-400">(${vulns.length})</span>
+                        </div>
+                        <div class="space-y-2">
+                `;
+
+                vulns.forEach(v => {
+                    html += `
+                        <div class="flex items-start gap-3 text-sm">
+                            <span class="w-2 h-2 mt-1.5 rounded-full ${riskColors[v.risk_level] || 'bg-gray-400'} flex-shrink-0"></span>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-mono text-xs text-gray-700 break-all">${v.name}</p>
+                                <p class="text-gray-500 text-xs mt-0.5">${v.reason}</p>
+                                <p class="text-gray-700 text-xs mt-1">Recommendation: ${v.recommendation}</p>
+                            </div>
+                            <span class="px-2 py-0.5 text-xs rounded ${v.risk_level === 'CRITICAL' ? 'bg-red-50 text-red-700 border border-red-200' : v.risk_level === 'HIGH' ? 'bg-orange-50 text-orange-700 border border-orange-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">${v.risk_level}</span>
+                        </div>
+                    `;
+                });
+
+                html += '</div></div>';
+            }
+
+            html += '</div>';
+            vulnDetails.innerHTML = html;
+        }
+
+        async function loadQuantumVulnerabilities(scanId) {
+            try {
+                const response = await fetch(`/api/vulnerabilities/${scanId}`);
+                if (!response.ok) {
+                    document.getElementById('vulnDetails').innerHTML = '<p class="text-gray-500 text-sm">Vulnerability details unavailable for this historical scan.</p>';
+                    const vulnCount = document.getElementById('vulnCount');
+                    if (vulnCount) vulnCount.textContent = '-';
+                    return;
+                }
+                
+                const data = await response.json();
+                renderQuantumVulnerabilities(data);
+                
+            } catch (error) {
+                console.error('Failed to load vulnerabilities:', error);
+                document.getElementById('vulnDetails').innerHTML = '<p class="text-gray-500 text-sm">Unable to load vulnerability details</p>';
+            }
+        }
+
+        async function refreshStats() {
+            const currentCbom = latestCombinedCbom || latestCbomData || null;
+            setStatsFromCbom(currentCbom);
+        }
+
+        async function downloadLatestCBOM(format = 'json') {
+            if (!latestScanId && !latestCbomData) return;
+
+            if (format === 'json' && latestCbomData) {
+                const blob = new Blob([JSON.stringify(latestCbomData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const target = (latestCbomData.endpoints?.[0]?.endpoint || 'scan').replace(/[^a-zA-Z0-9._-]/g, '_');
+                a.href = url;
+                a.download = `cbom_${target}_${latestScanId || 'latest'}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                return;
+            }
+
+            if (format === 'pdf') {
+                if (!latestScanId) {
+                    alert('PDF download is only available for this session scan. Please run a new scan.');
+                    return;
+                }
+                window.open(`/api/cbom/${latestScanId}/download/pdf`, '_blank');
+            } else {
+                window.open(`/api/cbom/${latestScanId}/download`, '_blank');
+            }
+        }
+
+        async function viewScan(scanId) {
+            try {
+                const response = await fetch(`/api/scan/${scanId}`);
+                const scan = await response.json();
+                if (scan.result) {
+                    latestScanId = scanId;
+                    latestCbomData = scan.cbom || null;
+                    latestVulnerabilityData = scan.vulnerabilities || null;
+                    displayScanResult(scan.result, latestVulnerabilityData);
+                    setStatsFromCbom(latestCbomData);
+                    document.getElementById('downloadContainer').classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Failed to load scan:', error);
+            }
+        }
+
+        document.getElementById('targetInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') startScan();
+        });
+    </script>
+</body>
+</html>

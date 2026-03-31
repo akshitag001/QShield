@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Why Quantum Security Matters | Q-Shield</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-a: #f8f8fa;
+            --bg-b: #f2f3f7;
+            --panel: rgba(255, 255, 255, 0.9);
+            --border: rgba(15, 23, 42, 0.08);
+            --text: #12131a;
+            --muted: #6b7280;
+            --primary: #111827;
+            --danger-bg: #fff1f2;
+            --danger-border: #fecdd3;
+            --danger-text: #9f1239;
+            --ok-bg: #ecfdf5;
+            --ok-border: #a7f3d0;
+            --ok-text: #065f46;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: Inter, sans-serif;
+            background: linear-gradient(180deg, var(--bg-a) 0%, var(--bg-b) 100%);
+            color: var(--text);
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(500px 300px at 90% 20%, rgba(244, 114, 182, 0.12), transparent 70%),
+                radial-gradient(500px 300px at 8% 0%, rgba(148, 163, 184, 0.12), transparent 70%);
+            opacity: 0.65;
+            z-index: 0;
+        }
+
+        .container {
+            width: min(1140px, calc(100% - 2rem));
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .nav-wrap {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            backdrop-filter: blur(8px);
+            background: rgba(255, 255, 255, 0.7);
+            border-bottom: 1px solid rgba(229, 231, 235, 0.8);
+        }
+
+        .nav {
+            margin: 0.75rem auto;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: var(--panel);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            gap: 1rem;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 700;
+            font-size: 1.85rem;
+        }
+
+        .brand-badge {
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            background: #111827;
+            color: white;
+            display: grid;
+            place-items: center;
+            font-size: 1rem;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 1.6rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--muted);
+        }
+
+        .nav-links a {
+            color: inherit;
+            text-decoration: none;
+            transition: color .2s ease;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: #111827;
+        }
+
+        .nav-dropdown {
+            position: relative;
+        }
+
+        .nav-dropdown > summary {
+            list-style: none;
+            cursor: pointer;
+            transition: color .2s ease;
+        }
+
+        .nav-dropdown > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .nav-dropdown > summary:hover {
+            color: #111827;
+        }
+
+        .nav-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            min-width: 170px;
+            background: #fff;
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            border-radius: 12px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+            padding: 0.4rem;
+            z-index: 30;
+        }
+
+        .nav-dropdown-menu a {
+            display: block;
+            padding: 0.5rem 0.65rem;
+            border-radius: 8px;
+        }
+
+        .nav-dropdown-menu a:hover {
+            background: #f8fafc;
+        }
+
+        .btn {
+            border: 1px solid rgba(17, 24, 39, 0.14);
+            border-radius: 12px;
+            padding: 0.72rem 1.2rem;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .5rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all .25s ease;
+        }
+
+        .btn-primary {
+            background: #111827;
+            color: white;
+            box-shadow: 0 8px 20px rgba(17, 24, 39, 0.18);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            background: #0b1220;
+            box-shadow: 0 12px 26px rgba(17, 24, 39, 0.25);
+        }
+
+        .btn-light {
+            background: #fff;
+            color: #111827;
+        }
+
+        .btn-light:hover {
+            box-shadow: 0 8px 18px rgba(17, 24, 39, 0.08);
+            border-color: rgba(17, 24, 39, 0.3);
+        }
+
+        .section {
+            padding: 3.2rem 0;
+        }
+
+        .hero {
+            padding-top: 3.4rem;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            padding: .55rem 1rem;
+            border-radius: 999px;
+            border: 1px solid #e5e7eb;
+            background: #fff;
+            color: #6b7280;
+            font-size: .92rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        h1, h2 {
+            font-family: "Space Grotesk", Inter, sans-serif;
+            margin: 0;
+            letter-spacing: -0.02em;
+        }
+
+        h1 {
+            font-size: clamp(2.3rem, 4.2vw, 4rem);
+            line-height: 1.08;
+            margin-bottom: 1rem;
+        }
+
+        h2 {
+            font-size: clamp(1.5rem, 2.2vw, 2.2rem);
+            margin-bottom: .55rem;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            font-size: 1.12rem;
+            margin: 0 0 1rem;
+        }
+
+        .lead {
+            color: #4b5563;
+            font-size: 1.12rem;
+            max-width: 760px;
+            margin: 0 0 1.2rem;
+            line-height: 1.6;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 1rem;
+        }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 1rem;
+        }
+
+        .card {
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: var(--panel);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+            padding: 1.1rem 1.15rem;
+            transition: transform .25s ease, box-shadow .25s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 14px 30px rgba(17, 24, 39, 0.09);
+        }
+
+        .card h3 {
+            margin: 0 0 .45rem;
+            font-size: 1.06rem;
+            font-family: "Space Grotesk", Inter, sans-serif;
+        }
+
+        .card p {
+            margin: 0;
+            color: #6b7280;
+            line-height: 1.52;
+        }
+
+        .warning {
+            border: 1px solid var(--danger-border);
+            background: var(--danger-bg);
+            color: var(--danger-text);
+            border-radius: 16px;
+            padding: 1rem 1.1rem;
+            font-weight: 600;
+            margin-top: 1rem;
+        }
+
+        .highlight {
+            margin-top: 0.85rem;
+            font-weight: 700;
+            color: #be123c;
+            font-size: 1.02rem;
+        }
+
+        .sim-wrap {
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.75);
+        }
+
+        .sim-controls {
+            margin-top: .8rem;
+            display: flex;
+            align-items: center;
+            gap: .55rem;
+            flex-wrap: wrap;
+        }
+
+        .sim-meta {
+            font-size: .85rem;
+            color: #6b7280;
+            font-weight: 600;
+            margin-left: .3rem;
+        }
+
+        .hndl-anim-shell {
+            margin-top: .95rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: linear-gradient(180deg, #fbfcff 0%, #f5f7fb 100%);
+            min-height: 280px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #hndlAnimation {
+            width: 100%;
+            height: 280px;
+            min-height: 280px;
+            display: grid;
+            place-items: center;
+        }
+
+        #hndlSequenceImage {
+            width: min(860px, 98%);
+            max-height: 100%;
+            object-fit: contain;
+            transition: opacity .3s ease;
+        }
+
+        .hndl-fallback {
+            position: absolute;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: #f8fafc;
+        }
+
+        .hndl-fallback.show {
+            display: flex;
+        }
+
+        .hndl-fallback img {
+            width: min(760px, 96%);
+            height: auto;
+            opacity: 0.98;
+        }
+
+        .hndl-anim-shell {
+            margin-top: .95rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: #fff;
+            min-height: 240px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #hndlAnimation {
+            width: 100%;
+            height: 100%;
+            min-height: 240px;
+        }
+
+        .hndl-fallback {
+            position: absolute;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+        }
+
+        .hndl-fallback.show {
+            display: flex;
+        }
+
+        .hndl-fallback img {
+            width: min(560px, 95%);
+            height: auto;
+            opacity: 0.92;
+        }
+
+        .steps {
+            margin-top: .9rem;
+            display: grid;
+            gap: .6rem;
+        }
+
+        .step {
+            border: 1px solid #e5e7eb;
+            background: #fff;
+            border-radius: 12px;
+            padding: .75rem .9rem;
+            color: #4b5563;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: all .35s ease;
+        }
+
+        .step.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toggle-row {
+            display: inline-flex;
+            border: 1px solid #d1d5db;
+            border-radius: 12px;
+            overflow: hidden;
+            margin: .5rem 0 1rem;
+            background: #fff;
+        }
+
+        .toggle-btn {
+            border: 0;
+            background: transparent;
+            color: #4b5563;
+            padding: .65rem 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s ease;
+        }
+
+        .toggle-btn.active {
+            background: #111827;
+            color: #fff;
+        }
+
+        .tls-panel {
+            border-radius: 16px;
+            padding: 1rem;
+            border: 1px solid;
+            display: none;
+            animation: fadeIn .25s ease;
+        }
+
+        .tls-panel.show {
+            display: block;
+        }
+
+        .tls-current {
+            background: rgba(255, 255, 255, 0.9);
+            border-color: #e5e7eb;
+        }
+
+        .tls-future {
+            background: rgba(255, 255, 255, 0.9);
+            border-color: #e5e7eb;
+        }
+
+        .flow {
+            display: grid;
+            gap: .62rem;
+            margin-top: .75rem;
+        }
+
+        .flow-item {
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid rgba(17, 24, 39, 0.08);
+            border-radius: 10px;
+            padding: .6rem .75rem;
+            color: #374151;
+            font-weight: 500;
+            display: none;
+        }
+
+        .flow-item.show {
+            display: block;
+        }
+
+        .result-danger {
+            color: #dc2626;
+            font-weight: 700;
+        }
+
+        .result-ok {
+            color: #16a34a;
+            font-weight: 700;
+        }
+
+        .bullet-list {
+            margin: .8rem 0 0;
+            padding-left: 1.1rem;
+            color: #4b5563;
+            line-height: 1.8;
+        }
+
+        .final-cta {
+            text-align: center;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: rgba(255,255,255,.82);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+            padding: 2.4rem 1rem;
+        }
+
+        .fade-up {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity .5s ease, transform .5s ease;
+        }
+
+        .fade-up.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 920px) {
+            .nav-links { display: none; }
+            .grid-3 { grid-template-columns: 1fr; }
+            .grid-4 { grid-template-columns: 1fr 1fr; }
+        }
+
+        @media (max-width: 680px) {
+            .section { padding: 2.4rem 0; }
+            .hero { padding-top: 2.2rem; }
+            .grid-4 { grid-template-columns: 1fr; }
+            .brand { font-size: 1.5rem; }
+            #hndlAnimation {
+                height: 220px;
+                min-height: 220px;
+            }
+            .hndl-anim-shell {
+                min-height: 220px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav-wrap">
+        <div class="container nav">
+            <div class="brand">
+                <span class="brand-badge">🛡️</span>
+                <span>Q-Shield</span>
+            </div>
+            <div class="nav-links">
+                <details class="nav-dropdown">
+                    <summary>Scanner ▾</summary>
+                    <div class="nav-dropdown-menu">
+                        <a href="/#scanner">Main Scanner</a>
+                        <a href="/vendors">Vendor Scanner</a>
+                    </div>
+                </details>
+                <a href="/#results">Results</a>
+                <a href="/#history">History</a>
+                <a href="/scheduled-reporting">Scheduled Reports</a>
+                <a href="/learn" class="active">Learn</a>
+                {% if current_user.role in ['admin', 'cyber_lead', 'it_lead', 'security_head'] %}
+                <a href="/logs">Logs</a>
+                {% endif %}
+            </div>
+            <a href="/logout" class="btn btn-light">Logout</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        <section class="section hero fade-up">
+            <span class="eyebrow">Education Hub</span>
+            <h1>Why Quantum Security Matters</h1>
+            <p class="subtitle">Understanding the risks of today and the security of tomorrow</p>
+            <p class="lead">Modern encryption protects your data today — but quantum computing threatens to break it tomorrow.</p>
+            <a href="#hndl" class="btn btn-primary">Simulate Risk</a>
+        </section>
+
+        <section class="section fade-up">
+            <h2>How Your Data is Protected Today</h2>
+            <p class="lead">Web security relies on TLS, RSA, and ECC to protect communications, identity, and key exchange between clients and servers.</p>
+            <div class="grid-3">
+                <article class="card">
+                    <h3>RSA</h3>
+                    <p>RSA secures key exchange and signatures using large-number math. It is widely deployed but vulnerable to future quantum attacks.</p>
+                </article>
+                <article class="card">
+                    <h3>ECC</h3>
+                    <p>ECC provides strong security with smaller keys and high performance. Many modern systems depend on ECC for TLS and certificates.</p>
+                </article>
+                <article class="card">
+                    <h3>TLS Handshake</h3>
+                    <p>The TLS handshake negotiates algorithms and session keys. Its strength depends directly on the cryptographic primitives selected.</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="section fade-up">
+            <h2>The Quantum Threat</h2>
+            <p class="lead">Shor’s Algorithm can solve the hard math behind RSA and ECC. When fault-tolerant quantum machines mature, classical public-key systems become breakable.</p>
+            <div class="warning">Shor’s Algorithm can rapidly factor large integers and solve discrete logs, undermining current public-key trust.</div>
+            <p class="highlight">Data encrypted today can be decrypted tomorrow</p>
+        </section>
+
+        <section class="section fade-up" id="hndl">
+            <h2>Harvest Now, Decrypt Later</h2>
+            <p class="lead">Attackers can capture encrypted traffic now and wait for quantum capability to decrypt sensitive records later.</p>
+            <div class="sim-wrap">
+                <button class="btn btn-primary" id="simulateAttackBtn">Simulate Attack</button>
+                <div class="hndl-anim-shell" aria-label="HNDL simulation animation">
+                    <div id="hndlAnimation">
+                        <img id="hndlSequenceImage" src="/static/hndl/hndl-step-1.svg" alt="HNDL simulation sequence step">
+                    </div>
+                    <div class="hndl-fallback" id="hndlFallback">
+                        <img src="/static/hndl/hndl-preview.svg" alt="HNDL simulation preview">
+                    </div>
+                </div>
+                <div class="sim-controls">
+                    <button class="btn btn-light" id="hndlPrevBtn" type="button">Previous</button>
+                    <button class="btn btn-light" id="hndlNextBtn" type="button">Next</button>
+                    <span class="sim-meta" id="hndlStepMeta">Step 1 of 4</span>
+                </div>
+                <div class="steps" id="hndlSteps">
+                    <div class="step">Step 1: Data encrypted today 🔐</div>
+                    <div class="step">Step 2: Attacker stores data 📦</div>
+                    <div class="step">Step 3: Quantum computer arrives ⚛️</div>
+                    <div class="step">Step 4: Data decrypted ❌</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section fade-up">
+            <h2>TLS Handshake: Present vs Future</h2>
+            <div class="toggle-row">
+                <button class="toggle-btn active" id="btnCurrent" type="button">Current TLS</button>
+                <button class="toggle-btn" id="btnFuture" type="button">Quantum-Safe TLS</button>
+            </div>
+
+            <div class="tls-panel tls-current show" id="currentPanel">
+                <div class="flow">
+                    <div class="flow-item">Client → Hello (RSA, ECDHE)</div>
+                    <div class="flow-item">Server → Selects RSA</div>
+                    <div class="flow-item">Key Exchange → Classical</div>
+                    <div class="flow-item result-danger">Result → Vulnerable ❌</div>
+                </div>
+                <div class="sim-controls">
+                    <button class="btn btn-light" id="tlsCurrentPrevBtn" type="button">Previous</button>
+                    <button class="btn btn-light" id="tlsCurrentNextBtn" type="button">Next</button>
+                    <span class="sim-meta" id="tlsCurrentMeta">Step 1 of 4</span>
+                </div>
+            </div>
+
+            <div class="tls-panel tls-future" id="futurePanel">
+                <div class="flow">
+                    <div class="flow-item">Client → Hello (ECDHE + Kyber)</div>
+                    <div class="flow-item">Server → Hybrid Selection</div>
+                    <div class="flow-item">Key Exchange → ECDHE + Kyber</div>
+                    <div class="flow-item">Final Key → Combined</div>
+                    <div class="flow-item result-ok">Result → Secure ✅</div>
+                </div>
+                <div class="sim-controls">
+                    <button class="btn btn-light" id="tlsFuturePrevBtn" type="button">Previous</button>
+                    <button class="btn btn-light" id="tlsFutureNextBtn" type="button">Next</button>
+                    <span class="sim-meta" id="tlsFutureMeta">Step 1 of 5</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="section fade-up">
+            <h2>Post-Quantum Cryptography</h2>
+            <p class="lead">The next generation of cryptography is designed to resist both classical and quantum attacks.</p>
+            <div class="grid-4">
+                <article class="card"><h3>Kyber</h3><p>Key encapsulation mechanism for secure key exchange in quantum-safe TLS.</p></article>
+                <article class="card"><h3>Dilithium</h3><p>Digital signature algorithm designed for high assurance and practical deployment.</p></article>
+                <article class="card"><h3>Falcon</h3><p>Compact and efficient signature scheme for constrained systems.</p></article>
+                <article class="card"><h3>SPHINCS+</h3><p>Hash-based signature scheme with conservative long-term security properties.</p></article>
+            </div>
+            <p class="lead" style="margin-top:1rem;">Standardization by NIST</p>
+        </section>
+
+        <section class="section fade-up">
+            <h2>Why Migration is Challenging</h2>
+            <ul class="bullet-list">
+                <li>No infra support</li>
+                <li>Compatibility issues</li>
+                <li>Cost</li>
+                <li>Awareness gap</li>
+            </ul>
+        </section>
+
+        <section class="section fade-up">
+            <h2>How Q-Shield Helps</h2>
+            <div class="grid-3">
+                <article class="card"><h3>Scan vulnerabilities</h3><p>Identify weak cryptographic assets exposed to quantum-era risks.</p></article>
+                <article class="card"><h3>Crypto agility score</h3><p>Measure readiness and prioritize modernization actions.</p></article>
+                <article class="card"><h3>PQC readiness</h3><p>Assess existing endpoint support for post-quantum migration.</p></article>
+                <article class="card"><h3>Migration guidance</h3><p>Get practical recommendations for secure transition planning.</p></article>
+                <article class="card"><h3>Handshake simulation</h3><p>Compare current and quantum-safe TLS models for decision support.</p></article>
+            </div>
+        </section>
+
+        <section class="section fade-up">
+            <div class="final-cta">
+                <h2>Start Your Quantum Security Journey</h2>
+                <p class="lead" style="margin-left:auto;margin-right:auto;">Move from awareness to action with real endpoint analysis and migration planning.</p>
+                <a href="/" class="btn btn-primary">Scan Now</a>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const simulateAttackBtn = document.getElementById('simulateAttackBtn');
+        const hndlSteps = Array.from(document.querySelectorAll('#hndlSteps .step'));
+        const hndlSequenceImage = document.getElementById('hndlSequenceImage');
+        const hndlFallback = document.getElementById('hndlFallback');
+        const hndlPrevBtn = document.getElementById('hndlPrevBtn');
+        const hndlNextBtn = document.getElementById('hndlNextBtn');
+        const hndlStepMeta = document.getElementById('hndlStepMeta');
+        const sequenceFrames = [
+            '/static/hndl/hndl-step-1.svg',
+            '/static/hndl/hndl-step-2.svg',
+            '/static/hndl/hndl-step-3.svg',
+            '/static/hndl/hndl-step-4.svg'
+        ];
+        let hndlCurrentIndex = 0;
+
+        function updateHndlStep(index) {
+            hndlCurrentIndex = Math.max(0, Math.min(index, sequenceFrames.length - 1));
+
+            if (hndlSequenceImage) {
+                hndlSequenceImage.style.opacity = '0.2';
+                setTimeout(() => {
+                    hndlSequenceImage.src = sequenceFrames[hndlCurrentIndex];
+                    hndlSequenceImage.style.opacity = '1';
+                }, 110);
+            }
+
+            hndlSteps.forEach((step, idx) => {
+                step.classList.toggle('show', idx <= hndlCurrentIndex);
+            });
+
+            hndlStepMeta.textContent = `Step ${hndlCurrentIndex + 1} of ${sequenceFrames.length}`;
+        }
+
+        function verifySequenceAssets() {
+            let failed = 0;
+            sequenceFrames.forEach(src => {
+                const image = new Image();
+                image.onerror = () => {
+                    failed += 1;
+                    if (failed >= 2) hndlFallback.classList.add('show');
+                };
+                image.src = src;
+            });
+
+            if (hndlSequenceImage) {
+                hndlSequenceImage.onerror = () => hndlFallback.classList.add('show');
+            }
+        }
+
+        function runSimulation() {
+            updateHndlStep(0);
+            sequenceFrames.forEach((_, index) => {
+                setTimeout(() => updateHndlStep(index), index * 850);
+            });
+        }
+
+        function replaySimulation() {
+            runSimulation();
+        }
+
+        simulateAttackBtn.addEventListener('click', () => {
+            runSimulation();
+        });
+
+        hndlPrevBtn.addEventListener('click', () => updateHndlStep(hndlCurrentIndex - 1));
+        hndlNextBtn.addEventListener('click', () => updateHndlStep(hndlCurrentIndex + 1));
+
+        window.runSimulation = runSimulation;
+        window.replaySimulation = replaySimulation;
+
+        const btnCurrent = document.getElementById('btnCurrent');
+        const btnFuture = document.getElementById('btnFuture');
+        const currentPanel = document.getElementById('currentPanel');
+        const futurePanel = document.getElementById('futurePanel');
+        const currentFlowItems = Array.from(currentPanel.querySelectorAll('.flow-item'));
+        const futureFlowItems = Array.from(futurePanel.querySelectorAll('.flow-item'));
+        const tlsCurrentPrevBtn = document.getElementById('tlsCurrentPrevBtn');
+        const tlsCurrentNextBtn = document.getElementById('tlsCurrentNextBtn');
+        const tlsCurrentMeta = document.getElementById('tlsCurrentMeta');
+        const tlsFuturePrevBtn = document.getElementById('tlsFuturePrevBtn');
+        const tlsFutureNextBtn = document.getElementById('tlsFutureNextBtn');
+        const tlsFutureMeta = document.getElementById('tlsFutureMeta');
+        let tlsCurrentIndex = 0;
+        let tlsFutureIndex = 0;
+
+        function updateTlsSteps(mode, index) {
+            const items = mode === 'current' ? currentFlowItems : futureFlowItems;
+            const boundedIndex = Math.max(0, Math.min(index, items.length - 1));
+
+            if (mode === 'current') {
+                tlsCurrentIndex = boundedIndex;
+                tlsCurrentMeta.textContent = `Step ${boundedIndex + 1} of ${items.length}`;
+            } else {
+                tlsFutureIndex = boundedIndex;
+                tlsFutureMeta.textContent = `Step ${boundedIndex + 1} of ${items.length}`;
+            }
+
+            items.forEach((item, idx) => {
+                item.classList.toggle('show', idx <= boundedIndex);
+            });
+        }
+
+        function setTlsView(mode) {
+            const showCurrent = mode === 'current';
+            currentPanel.classList.toggle('show', showCurrent);
+            futurePanel.classList.toggle('show', !showCurrent);
+            btnCurrent.classList.toggle('active', showCurrent);
+            btnFuture.classList.toggle('active', !showCurrent);
+
+            if (showCurrent) {
+                updateTlsSteps('current', tlsCurrentIndex);
+            } else {
+                updateTlsSteps('future', tlsFutureIndex);
+            }
+        }
+
+        btnCurrent.addEventListener('click', () => setTlsView('current'));
+        btnFuture.addEventListener('click', () => setTlsView('future'));
+        tlsCurrentPrevBtn.addEventListener('click', () => updateTlsSteps('current', tlsCurrentIndex - 1));
+        tlsCurrentNextBtn.addEventListener('click', () => updateTlsSteps('current', tlsCurrentIndex + 1));
+        tlsFuturePrevBtn.addEventListener('click', () => updateTlsSteps('future', tlsFutureIndex - 1));
+        tlsFutureNextBtn.addEventListener('click', () => updateTlsSteps('future', tlsFutureIndex + 1));
+
+        const fadeItems = document.querySelectorAll('.fade-up');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('show');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.12 });
+
+        fadeItems.forEach(item => observer.observe(item));
+        verifySequenceAssets();
+        updateHndlStep(0);
+        updateTlsSteps('current', 0);
+        updateTlsSteps('future', 0);
+    </script>
+</body>
+</html>
