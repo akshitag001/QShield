@@ -1,3 +1,36 @@
+import re
+import logging
+
+# --- PQC/Hybrid Detection Strict Matching (copied from tls_scanner.py) ---
+PQC_ALGORITHM_INDICATORS = {
+    "KYBER", "ML-KEM", "MLKEM",
+    "DILITHIUM", "ML-DSA", "MLDSA",
+    "FALCON", "SPHINCS", "SPHINCSPLUS",
+    "NTRU", "SABER", "FRODO", "FRODOKEM",
+    "BIKE", "HQC", "CLASSIC-MCELIECE", "MCELIECE"
+}
+HYBRID_FULL_NAMES = {
+    "X25519MLKEM768", "X25519KYBER768",
+    "P256MLKEM768", "P384MLKEM1024",
+    "SECP256R1MLKEM768", "P256KYBER512", "P384KYBER768",
+}
+# Keep HYBRID_INDICATORS as alias for backward compat
+HYBRID_INDICATORS = HYBRID_FULL_NAMES
+logger = logging.getLogger("qshield.cbom.pqc")
+logger.setLevel(logging.DEBUG)
+
+def normalize_name(name: str) -> str:
+    return name.strip().replace("'", "").replace('"', "").replace("(", "").replace(")", "")
+
+def is_pqc_algorithm(name: str, pqc_indicators: set) -> bool:
+    name_upper = normalize_name(name).upper()
+    tokens = re.split(r'[-_\s/]+', name_upper)
+    return any(token in pqc_indicators for token in tokens)
+
+def is_hybrid_algorithm(name: str) -> bool:
+    """FIX: Exact full-name match only — prevents false positives from token splitting."""
+    name_upper = normalize_name(name).upper()
+    return name_upper in HYBRID_FULL_NAMES
 """
 Cryptographic Bill of Materials (CBOM) Generator
 
@@ -72,7 +105,19 @@ class CBOM:
     summary: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        result = asdict(self)
+        # Convert enums to strings
+        for endpoint in result.get("endpoints", []):
+            for asset in endpoint.get("assets", []):
+                if isinstance(asset.get("asset_type"), dict) and "value" in asset["asset_type"]:
+                    asset["asset_type"] = asset["asset_type"]["value"]
+                elif not isinstance(asset.get("asset_type"), str):
+                    asset["asset_type"] = str(asset.get("asset_type", "unknown"))
+                if isinstance(asset.get("strength"), dict) and "value" in asset["strength"]:
+                    asset["strength"] = asset["strength"]["value"]
+                elif not isinstance(asset.get("strength"), str):
+                    asset["strength"] = str(asset.get("strength", "unknown"))
+        return result
 
     def to_json(self, indent: int = 2) -> str:
         return json.dumps(self.to_dict(), indent=indent, sort_keys=True, default=str)
@@ -171,20 +216,9 @@ def _classify_tls_version_strength(version: str) -> CryptoStrength:
 
 
 def _is_hybrid_key_exchange(name: str) -> bool:
-    """Detect if a key exchange algorithm is a hybrid classical+PQC mode."""
     if not name:
         return False
-    name_upper = name.upper()
-    
-    # Look for both classical and PQC indicators
-    classical_indicators = ["X25519", "X448", "P256", "P384", "P521", "SECP256R1", "SECP384R1", "SECP521R1"]
-    pqc_indicators = ["MLKEM", "ML-KEM", "KYBER", "DILITHIUM", "MLDSA", "ML-DSA", 
-                      "SPHINCS", "SLHDSA", "SLH-DSA", "FALCON", "BIKE", "HQC", "NTRU"]
-    
-    has_classical = any(ind in name_upper for ind in classical_indicators)
-    has_pqc = any(ind in name_upper for ind in pqc_indicators)
-    
-    return has_classical and has_pqc
+    return is_hybrid_algorithm(name)
 
 
 def _detect_key_exchange_type(name: str) -> str:
@@ -194,22 +228,27 @@ def _detect_key_exchange_type(name: str) -> str:
     """
     if not name:
         return 'unknown'
+    name_upper = normalize_name(name).upper()
+    tokens = re.split(r'[-_\s/]+', name_upper)
+    has_pqc = any(token in PQC_ALGORITHM_INDICATORS for token in tokens)
+    has_hybrid = name_upper in HYBRID_FULL_NAMES
+    classical_tokens = {"X25519", "X448", "P256", "P384", "P521", "SECP256R1", "SECP384R1", "SECP521R1", "DHE", "ECDHE", "ECDH", "DH", "RSA"}
+    has_classical = any(token in classical_tokens for token in tokens)
     
-    name_upper = name.upper()
-    pqc_indicators = ["MLKEM", "ML-KEM", "KYBER", "DILITHIUM", "MLDSA", "ML-DSA", 
-                      "SPHINCS", "SLHDSA", "SLH-DSA", "FALCON", "BIKE", "HQC", "NTRU"]
-    classical_indicators = ["X25519", "X448", "P256", "P384", "P521", "SECP256R1", "SECP384R1", "SECP521R1"]
+    # DEBUG logging
+    logger.debug(f"Key Exchange Detection: name={name}, normalized={name_upper}, has_hybrid={has_hybrid}, has_pqc={has_pqc}, has_classical={has_classical}")
     
-    has_pqc = any(ind in name_upper for ind in pqc_indicators)
-    has_classical = any(ind in name_upper for ind in classical_indicators)
-    
-    if has_classical and has_pqc:
+    if has_hybrid:
+        logger.debug(f"  -> Result: hybrid_pqc")
         return 'hybrid_pqc'
     elif has_pqc:
+        logger.debug(f"  -> Result: pqc")
         return 'pqc'
-    elif has_classical or name_upper in {"DHE", "ECDHE", "ECDH", "DH", "RSA"}:
+    elif has_classical:
+        logger.debug(f"  -> Result: classical")
         return 'classical'
     else:
+        logger.debug(f"  -> Result: unknown")
         return 'unknown'
 
 
@@ -224,41 +263,20 @@ def _is_quantum_safe(asset_type: CryptoAssetType, name: str) -> bool:
     # PQC algorithms are quantum-safe
     if asset_type in {CryptoAssetType.PQC_KEM, CryptoAssetType.PQC_SIGNATURE}:
         return True
-    
     # Hybrid is quantum-safe (provides quantum resistance)
     if asset_type == CryptoAssetType.HYBRID_KEY_EXCHANGE:
         return True
-    
     if asset_type == CryptoAssetType.KEY_EXCHANGE:
-        name_upper = name.upper()
-        # Check for PQC indicators - these make the KEX quantum safe
-        pqc_indicators = ["MLKEM", "ML-KEM", "KYBER", "DILITHIUM", "MLDSA", "ML-DSA", 
-                          "SPHINCS", "SLHDSA", "SLH-DSA", "FALCON", "BIKE", "HQC", "NTRU"]
-        if any(ind in name_upper for ind in pqc_indicators):
+        if is_pqc_algorithm(name, PQC_ALGORITHM_INDICATORS) or is_hybrid_algorithm(name):
             return True
-        # X25519 alone is vulnerable, but with PQC it's hybrid and safe
-        if "X25519" in name_upper and any(ind in name_upper for ind in pqc_indicators):
-            return True
-    
     if asset_type == CryptoAssetType.SYMMETRIC_CIPHER:
-        # Symmetric ciphers with adequate key size are quantum-resistant
-        # (Grover's algorithm halves effective key length)
         if "AES-256" in name.upper() or "CHACHA20" in name.upper():
             return True
-    
     if asset_type == CryptoAssetType.HASH_ALGORITHM:
-        # SHA-256+ provides adequate quantum resistance
         if any(x in name.upper() for x in ["SHA-256", "SHA256", "SHA-384", "SHA384", "SHA-512", "SHA512"]):
             return True
-    
-    # Check name for PQC indicators
-    name_upper = name.upper()
-    pqc_indicators = ["KYBER", "MLKEM", "ML-KEM", "DILITHIUM", "MLDSA", "ML-DSA", 
-                      "SPHINCS", "SLHDSA", "SLH-DSA", "FALCON", "BIKE", "HQC", "NTRU"]
-    if any(ind in name_upper for ind in pqc_indicators):
+    if is_pqc_algorithm(name, PQC_ALGORITHM_INDICATORS):
         return True
-    
-    # All current public key crypto (RSA, ECDSA, DH, ECDH) is quantum-vulnerable
     return False
 
 
@@ -294,11 +312,11 @@ def scan_result_to_cbom(scan_result: Dict[str, Any], endpoint_label: Optional[st
             inventory.weak_crypto_detected = True
         inventory.assets.append(asset)
     
-    # Check cipher suites for hybrid PQC support
+    # Check cipher suites for hybrid PQC support (strict)
     has_hybrid_pqc = False
     for cs in scan_result.get("cipher_suites", []):
         kx = cs.get("key_exchange", "")
-        if _is_hybrid_key_exchange(kx):
+        if is_hybrid_algorithm(kx):
             has_hybrid_pqc = True
             inventory.pqc_ready = True
             break
@@ -433,14 +451,13 @@ def scan_result_to_cbom(scan_result: Dict[str, Any], endpoint_label: Optional[st
     
     # Add PQC assets from security_features.pqc_support
     pqc_support = scan_result.get("security_features", {}).get("pqc_support", {})
-    if pqc_support.get("supported"):
+    pqc_algorithms = pqc_support.get("algorithms_detected", [])
+    if pqc_algorithms:
         inventory.pqc_ready = True
-        
-        for pqc_alg in pqc_support.get("algorithms_detected", []):
+        for pqc_alg in pqc_algorithms:
             alg_name = pqc_alg.get("algorithm", "Unknown PQC")
             alg_type = pqc_alg.get("type", "unknown")
             is_hybrid = pqc_alg.get("is_hybrid", False)
-            
             # Determine asset type
             if is_hybrid:
                 asset_type = CryptoAssetType.HYBRID_KEY_EXCHANGE
@@ -450,7 +467,6 @@ def scan_result_to_cbom(scan_result: Dict[str, Any], endpoint_label: Optional[st
                 asset_type = CryptoAssetType.PQC_SIGNATURE
             else:
                 asset_type = CryptoAssetType.PQC_KEM
-            
             pqc_asset = CryptoAsset(
                 asset_id=_generate_asset_id("pqc", alg_name, endpoint),
                 asset_type=asset_type,
@@ -470,7 +486,6 @@ def scan_result_to_cbom(scan_result: Dict[str, Any], endpoint_label: Optional[st
             pqc_asset.notes.append("Post-Quantum Cryptography - Quantum Safe")
             if is_hybrid:
                 pqc_asset.notes.append(f"Hybrid mode with classical {pqc_alg.get('classical_component', 'component')}")
-            
             inventory.assets.append(pqc_asset)
     
     # Also check key_exchange_details for PQC
@@ -573,28 +588,140 @@ def generate_cbom(scan_results: List[Dict[str, Any]]) -> CBOM:
     return cbom
 
 
+
+# === CBOM ENHANCEMENTS FOR IBM/CYCLONEDX ===
+def cbom_to_cyclonedx_json(cbom: CBOM) -> Dict[str, Any]:
+    """
+    Convert internal CBOM to CycloneDX/IBM CBOM-compliant JSON structure.
+    This includes 'components', 'dependencies', and all required cryptoProperties fields.
+    """
+    components = []
+    dependencies = []
+    for endpoint in cbom.endpoints:
+        for asset in endpoint.assets:
+            comp = {
+                "type": "crypto-asset",
+                "name": asset.name,
+                "cbom:assetType": asset.asset_type.value if hasattr(asset.asset_type, 'value') else str(asset.asset_type),
+                "cbom:strength": asset.strength.value if hasattr(asset.strength, 'value') else str(asset.strength),
+                "cbom:quantumVulnerable": asset.quantum_vulnerable,
+                "cbom:sourceEndpoint": asset.source_endpoint,
+                "cbom:notes": asset.notes,
+                "cbom:cryptoProperties": asset.properties,
+            }
+            components.append(comp)
+            # Example dependency: (extend as needed)
+            dependencies.append({
+                "ref": asset.asset_id,
+                "dependencyType": "uses" if asset.quantum_vulnerable else "implements"
+            })
+    cyclonedx_cbom = {
+        "bomFormat": "CycloneDX",
+        "specVersion": "1.4",
+        "cbomVersion": cbom.cbom_version,
+        "generated": cbom.generated_at,
+        "generator": cbom.generator,
+        "components": components,
+        "dependencies": dependencies,
+        "summary": cbom.summary,
+    }
+    return cyclonedx_cbom
+
+def export_cbom_pdf(cbom: CBOM, pdf_path: str):
+    """
+    Generate a professional, bank-style PDF report for the CBOM.
+    Uses ReportLab (pip install reportlab).
+    """
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+    from reportlab.lib.styles import getSampleStyleSheet
+    import os
+
+    print(f"[DEBUG] Attempting to write PDF to: {pdf_path}")
+    try:
+        doc = SimpleDocTemplate(pdf_path, pagesize=A4)
+        styles = getSampleStyleSheet()
+        elements = []
+
+        # Title page
+        elements.append(Paragraph("Cryptography Bill of Materials (CBOM) Report", styles['Title']))
+        elements.append(Spacer(1, 24))
+        elements.append(Paragraph(f"Organization: <b>Q-Shield</b>", styles['Normal']))
+        elements.append(Paragraph(f"Generated: {cbom.generated_at}", styles['Normal']))
+        elements.append(Paragraph(f"Report Version: {cbom.cbom_version}", styles['Normal']))
+        elements.append(Spacer(1, 24))
+        elements.append(Paragraph("<b>Executive Summary</b>", styles['Heading2']))
+        for k, v in cbom.summary.items():
+            elements.append(Paragraph(f"{k.replace('_', ' ').capitalize()}: <b>{v}</b>", styles['Normal']))
+        elements.append(PageBreak())
+
+        # Detailed crypto assets table
+        elements.append(Paragraph("<b>Cryptographic Assets Inventory</b>", styles['Heading2']))
+        for endpoint in cbom.endpoints:
+            elements.append(Paragraph(f"Endpoint: <b>{endpoint.endpoint}</b>", styles['Heading3']))
+            data = [["Asset Type", "Name", "Strength", "Quantum Vulnerable", "Notes"]]
+            for asset in endpoint.assets:
+                data.append([
+                    asset.asset_type.value if hasattr(asset.asset_type, 'value') else str(asset.asset_type),
+                    asset.name,
+                    asset.strength.value if hasattr(asset.strength, 'value') else str(asset.strength),
+                    "Yes" if asset.quantum_vulnerable else "No",
+                    ", ".join(asset.notes) if asset.notes else "-"
+                ])
+            t = Table(data, repeatRows=1)
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.lightgray),
+                ('TEXTCOLOR', (0,0), (-1,0), colors.black),
+                ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                ('BOTTOMPADDING', (0,0), (-1,0), 8),
+                ('GRID', (0,0), (-1,-1), 0.5, colors.gray),
+            ]))
+            elements.append(t)
+            elements.append(Spacer(1, 12))
+        # Add more sections as needed (dependencies, detection context, etc.)
+        doc.build(elements)
+        print(f"[DEBUG] PDF successfully written to: {pdf_path}")
+    except Exception as e:
+        print(f"[ERROR] PDF generation failed: {e}")
+
+# === END ENHANCEMENTS ===
+
 if __name__ == "__main__":
-    # Example usage with a mock scan result
     import sys
-    
+    print("[DEBUG] Entered __main__ block of cbom_generator.py")
     if len(sys.argv) < 2:
-        print("Usage: python cbom_generator.py <scan_result.json>")
-        print("Or pipe scan results: python tls_scanner.py example.com | python cbom_generator.py -")
+        print("[DEBUG] Not enough arguments provided to script.")
+        print("Usage: python cbom_generator.py <scan_result.json> [--pdf <output.pdf>] [--cyclonedx-json <output.json>]")
         sys.exit(1)
-    
     if sys.argv[1] == "-":
-        # Read from stdin
+        print("[DEBUG] Reading scan data from stdin.")
         data = json.load(sys.stdin)
     else:
-        # Read from file
+        print(f"[DEBUG] Reading scan data from file: {sys.argv[1]}")
         with open(sys.argv[1]) as f:
             data = json.load(f)
-    
-    # Handle single result or list of results
-    if isinstance(data, list):
-        scan_results = data
-    else:
-        scan_results = [data]
-    
+    scan_results = data if isinstance(data, list) else [data]
+    print("[DEBUG] Generating CBOM from scan results.")
     cbom = generate_cbom(scan_results)
+    # Default: print legacy JSON
+    print("[DEBUG] Printing legacy JSON output.")
     print(cbom.to_json())
+    # Optionally export CycloneDX/IBM CBOM JSON
+    if "--cyclonedx-json" in sys.argv:
+        idx = sys.argv.index("--cyclonedx-json")
+        out_path = sys.argv[idx+1] if idx+1 < len(sys.argv) else "cbom_cyclonedx.json"
+        print(f"[DEBUG] Writing CycloneDX CBOM JSON to: {out_path}")
+        with open(out_path, "w") as f:
+            json.dump(cbom_to_cyclonedx_json(cbom), f, indent=2)
+        print(f"CycloneDX CBOM JSON written to {out_path}")
+    # Optionally export PDF
+    if "--pdf" in sys.argv:
+        idx = sys.argv.index("--pdf")
+        out_path = sys.argv[idx+1] if idx+1 < len(sys.argv) else "cbom_report.pdf"
+        print(f"[DEBUG] About to call export_cbom_pdf with path: {out_path}")
+        export_cbom_pdf(cbom, out_path)
+        print(f"[DEBUG] export_cbom_pdf call finished for: {out_path}")
+        print(f"CBOM PDF report written to {out_path}")

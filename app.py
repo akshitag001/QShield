@@ -939,6 +939,47 @@ async def health_check():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
+@app.get("/api/cert-info/{domain}")
+async def get_cert_info(domain: str):
+    """
+    Quickly fetch certificate expiry date for a domain.
+    Used for displaying cert info in the subdomain list.
+    """
+    from tls_scanner import _get_certificate_metadata
+    
+    domain = domain.strip().lower()
+    if not domain or len(domain) < 3:
+        return {"domain": domain, "expiry": None, "valid": False, "error": "Invalid domain"}
+    
+    try:
+        cert_info = _get_certificate_metadata(domain, 443, timeout=5)
+        expiry = cert_info.get("valid_to")
+        subject = cert_info.get("subject", "")
+        
+        if expiry:
+            # Parse ISO format date
+            try:
+                expiry_date = datetime.fromisoformat(expiry.replace("Z", "+00:00"))
+                now = datetime.now(timezone.utc) if expiry_date.tzinfo else datetime.now()
+                is_valid = now < expiry_date
+                days_until_expiry = (expiry_date.date() - now.date()).days if is_valid else -((now.date() - expiry_date.date()).days)
+                
+                return {
+                    "domain": domain,
+                    "expiry": expiry,
+                    "subject": subject,
+                    "valid": is_valid,
+                    "days_until_expiry": days_until_expiry,
+                    "status": "ok"
+                }
+            except Exception as e:
+                return {"domain": domain, "expiry": expiry, "valid": False, "error": f"Date parse error: {str(e)}", "status": "parse_error"}
+        else:
+            return {"domain": domain, "expiry": None, "valid": False, "error": "Could not retrieve cert info", "status": "no_cert"}
+    except Exception as e:
+        return {"domain": domain, "expiry": None, "valid": False, "error": str(e), "status": "error"}
+
+
 @app.post("/api/scan", response_model=ScanResponse)
 async def scan_target(scan_request: ScanRequest, request: Request, db: Session = Depends(get_db)):
     """
@@ -1318,148 +1359,163 @@ async def download_cbom_pdf(scan_id: str, request: Request, db: Session = Depend
     """Download CBOM as PDF report"""
     user = _require_user(request, db)
 
-    from reportlab.lib import colors
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-    from reportlab.lib.units import inch
-    from reportlab.lib.enums import TA_CENTER
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+        from reportlab.lib.units import inch
+        from reportlab.lib.enums import TA_CENTER
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+        from html import escape
+    except ImportError as e:
+        raise HTTPException(status_code=500, detail=f"ReportLab not installed: {str(e)}")
 
     scan = _get_scan_for_user(db, scan_id, user)
     if not scan or not scan.cbom_json:
         raise HTTPException(status_code=404, detail="CBOM not found")
 
-    cbom = json.loads(scan.cbom_json)
+    try:
+        cbom = json.loads(scan.cbom_json)
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"Invalid CBOM JSON: {str(e)}")
+
     target = scan.target
 
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.5 * inch, bottomMargin=0.5 * inch)
+    try:
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.5 * inch, bottomMargin=0.5 * inch)
 
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle("Title", parent=styles["Title"], fontSize=24, spaceAfter=20, textColor=colors.HexColor("#1e3a5f"))
-    heading_style = ParagraphStyle("Heading", parent=styles["Heading2"], fontSize=14, spaceAfter=10, spaceBefore=20, textColor=colors.HexColor("#4c1d95"))
-    normal_style = ParagraphStyle("Normal", parent=styles["Normal"], fontSize=10, spaceAfter=6)
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle("Title", parent=styles["Title"], fontSize=24, spaceAfter=20, textColor=colors.HexColor("#1e3a5f"))
+        heading_style = ParagraphStyle("Heading", parent=styles["Heading2"], fontSize=14, spaceAfter=10, spaceBefore=20, textColor=colors.HexColor("#4c1d95"))
+        normal_style = ParagraphStyle("Normal", parent=styles["Normal"], fontSize=10, spaceAfter=6)
 
-    elements = []
-    elements.append(Paragraph("Q-Shield CBOM Report", title_style))
-    elements.append(Paragraph("Cryptographic Bill of Materials", styles["Heading3"]))
-    elements.append(Spacer(1, 20))
+        elements = []
+        elements.append(Paragraph("Q-Shield CBOM Report", title_style))
+        elements.append(Paragraph("Cryptographic Bill of Materials", styles["Heading3"]))
+        elements.append(Spacer(1, 20))
 
-    elements.append(Paragraph(f"<b>Target:</b> {target}", normal_style))
-    elements.append(Paragraph(f"<b>Scan ID:</b> {scan_id}", normal_style))
-    elements.append(Paragraph(f"<b>Generated:</b> {cbom.get('generated_at', 'N/A')}", normal_style))
-    elements.append(Paragraph(f"<b>Generator:</b> {cbom.get('generator', 'Q-Shield')}", normal_style))
-    elements.append(Spacer(1, 15))
-
-    summary = cbom.get("summary", {})
-    elements.append(Paragraph("Executive Summary", heading_style))
-
-    summary_data = [
-        ["Metric", "Value"],
-        ["Total Crypto Assets", str(summary.get("total_assets", 0))],
-        ["Quantum Vulnerable", str(summary.get("quantum_vulnerable_assets", 0))],
-        ["Quantum Safe", str(summary.get("quantum_safe_assets", 0))],
-        ["Endpoints Scanned", str(summary.get("total_endpoints", 0))],
-        ["PQC Ready", str(summary.get("endpoints_pqc_ready", 0))],
-        ["Weak Crypto Detected", str(summary.get("endpoints_with_weak_crypto", 0))],
-    ]
-
-    summary_table = Table(summary_data, colWidths=[3 * inch, 2 * inch])
-    summary_table.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#4c1d95")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, -1), 10),
-                ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
-                ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#f5f3ff")),
-                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e5e7eb")),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f9fafb")]),
-            ]
-        )
-    )
-    elements.append(summary_table)
-    elements.append(Spacer(1, 20))
-
-    for endpoint_data in cbom.get("endpoints", []):
-        elements.append(Paragraph(f"Endpoint: {endpoint_data.get('endpoint', 'N/A')}", heading_style))
-        elements.append(Paragraph(f"IP: {endpoint_data.get('ip_address', 'N/A')} | Port: {endpoint_data.get('port', 'N/A')}", normal_style))
-        elements.append(Paragraph(f"TLS Versions: {', '.join(endpoint_data.get('tls_versions', []))}", normal_style))
-        elements.append(Paragraph(f"Forward Secrecy: {'Yes' if endpoint_data.get('forward_secrecy') else 'No'}", normal_style))
-        elements.append(Spacer(1, 10))
-
-        assets = endpoint_data.get("assets", [])
-        if assets:
-            elements.append(Paragraph("Cryptographic Assets", styles["Heading4"]))
-
-            def clean_type(asset_type: str):
-                asset_type = str(asset_type)
-                if "." in asset_type:
-                    asset_type = asset_type.split(".")[-1]
-                return asset_type.replace("_", " ").title()
-
-            def clean_strength(strength: str):
-                strength = str(strength)
-                if "." in strength:
-                    strength = strength.split(".")[-1]
-                return strength.capitalize()
-
-            asset_data = [["Type", "Name", "Strength", "Q-Safe"]]
-            for asset in assets[:20]:
-                asset_type = clean_type(asset.get("asset_type", "-"))
-                name = asset.get("name", "-")
-                if len(name) > 35:
-                    name = f"{name[:32]}..."
-                strength = clean_strength(asset.get("strength", "-"))
-                q_safe = "✓" if not asset.get("quantum_vulnerable", True) else "✗"
-                asset_data.append([asset_type, name, strength, q_safe])
-
-            asset_table = Table(asset_data, colWidths=[1.3 * inch, 3 * inch, 0.9 * inch, 0.5 * inch])
-            asset_table.setStyle(
-                TableStyle(
-                    [
-                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a5f")),
-                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-                        ("ALIGN", (3, 0), (3, -1), "CENTER"),
-                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                        ("FONTSIZE", (0, 0), (-1, 0), 9),
-                        ("FONTSIZE", (0, 1), (-1, -1), 8),
-                        ("TOPPADDING", (0, 0), (-1, -1), 6),
-                        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-                        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e5e7eb")),
-                        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f9fafb")]),
-                        ("TEXTCOLOR", (3, 1), (3, -1), colors.HexColor("#059669")),
-                    ]
-                )
-            )
-            elements.append(asset_table)
-
-            if len(assets) > 20:
-                elements.append(Paragraph(f"... and {len(assets) - 20} more assets", normal_style))
-
+        elements.append(Paragraph(f"<b>Target:</b> {escape(target)}", normal_style))
+        elements.append(Paragraph(f"<b>Scan ID:</b> {escape(scan_id)}", normal_style))
+        elements.append(Paragraph(f"<b>Generated:</b> {escape(str(cbom.get('generated_at', 'N/A')))}", normal_style))
+        elements.append(Paragraph(f"<b>Generator:</b> {escape(str(cbom.get('generator', 'Q-Shield')))}", normal_style))
         elements.append(Spacer(1, 15))
 
-    elements.append(Spacer(1, 30))
-    elements.append(
-        Paragraph(
-            "Generated by Q-Shield | Post-Quantum Cryptographic Assessment Tool",
-            ParagraphStyle("Footer", parent=normal_style, fontSize=8, textColor=colors.gray, alignment=TA_CENTER),
+        summary = cbom.get("summary", {})
+        elements.append(Paragraph("Executive Summary", heading_style))
+
+        summary_data = [
+            ["Metric", "Value"],
+            ["Total Crypto Assets", str(summary.get("total_assets", 0))],
+            ["Quantum Vulnerable", str(summary.get("quantum_vulnerable_assets", 0))],
+            ["Quantum Safe", str(summary.get("quantum_safe_assets", 0))],
+            ["Endpoints Scanned", str(summary.get("total_endpoints", 0))],
+            ["PQC Ready", str(summary.get("endpoints_pqc_ready", 0))],
+            ["Weak Crypto Detected", str(summary.get("endpoints_with_weak_crypto", 0))],
+        ]
+
+        summary_table = Table(summary_data, colWidths=[3 * inch, 2 * inch])
+        summary_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#4c1d95")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 10),
+                    ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
+                    ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#f5f3ff")),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e5e7eb")),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f9fafb")]),
+                ]
+            )
         )
-    )
+        elements.append(summary_table)
+        elements.append(Spacer(1, 20))
 
-    doc.build(elements)
-    buffer.seek(0)
+        for endpoint_data in cbom.get("endpoints", []):
+            elements.append(Paragraph(f"Endpoint: {escape(str(endpoint_data.get('endpoint', 'N/A')))}", heading_style))
+            elements.append(Paragraph(f"IP: {escape(str(endpoint_data.get('ip_address', 'N/A')))} | Port: {endpoint_data.get('port', 'N/A')}", normal_style))
+            tls_versions = ", ".join(endpoint_data.get("tls_versions", []))
+            elements.append(Paragraph(f"TLS Versions: {escape(tls_versions)}", normal_style))
+            elements.append(Paragraph(f"Forward Secrecy: {'Yes' if endpoint_data.get('forward_secrecy') else 'No'}", normal_style))
+            elements.append(Spacer(1, 10))
 
-    filename = f"cbom_{target.replace(':', '_').replace('/', '_')}_{scan_id}.pdf"
+            assets = endpoint_data.get("assets", [])
+            if assets:
+                elements.append(Paragraph("Cryptographic Assets", styles["Heading4"]))
 
-    return StreamingResponse(
-        buffer,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
-    )
+                def clean_type(asset_type):
+                    asset_type = str(asset_type)
+                    if "." in asset_type:
+                        asset_type = asset_type.split(".")[-1]
+                    return asset_type.replace("_", " ").title()
+
+                def clean_strength(strength):
+                    strength = str(strength)
+                    if "." in strength:
+                        strength = strength.split(".")[-1]
+                    return strength.capitalize()
+
+                asset_data = [["Type", "Name", "Strength", "Q-Safe"]]
+                for asset in assets[:20]:
+                    asset_type = clean_type(asset.get("asset_type", "-"))
+                    name = asset.get("name", "-")
+                    if len(name) > 35:
+                        name = f"{name[:32]}..."
+                    strength = clean_strength(asset.get("strength", "-"))
+                    q_safe = "Y" if not asset.get("quantum_vulnerable", True) else "N"
+                    asset_data.append([asset_type, name, strength, q_safe])
+
+                asset_table = Table(asset_data, colWidths=[1.3 * inch, 3 * inch, 0.9 * inch, 0.5 * inch])
+                asset_table.setStyle(
+                    TableStyle(
+                        [
+                            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a5f")),
+                            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                            ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                            ("ALIGN", (3, 0), (3, -1), "CENTER"),
+                            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                            ("FONTSIZE", (0, 0), (-1, 0), 9),
+                            ("FONTSIZE", (0, 1), (-1, -1), 8),
+                            ("TOPPADDING", (0, 0), (-1, -1), 6),
+                            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e5e7eb")),
+                            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f9fafb")]),
+                            ("TEXTCOLOR", (3, 1), (3, -1), colors.HexColor("#059669")),
+                        ]
+                    )
+                )
+                elements.append(asset_table)
+
+                if len(assets) > 20:
+                    elements.append(Paragraph(f"... and {len(assets) - 20} more assets", normal_style))
+
+            elements.append(Spacer(1, 15))
+
+        elements.append(Spacer(1, 30))
+        elements.append(
+            Paragraph(
+                "Generated by Q-Shield | Post-Quantum Cryptographic Assessment Tool",
+                ParagraphStyle("Footer", parent=normal_style, fontSize=8, textColor=colors.gray, alignment=TA_CENTER),
+            )
+        )
+
+        doc.build(elements)
+        buffer.seek(0)
+
+        filename = f"cbom_{target.replace(':', '_').replace('/', '_')}_{scan_id}.pdf"
+
+        return StreamingResponse(
+            buffer,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+    except Exception as e:
+        import traceback
+        error_detail = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+        logger.error(f"PDF generation error: {error_detail}")
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
 
 
 @app.get("/api/stats")

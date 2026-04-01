@@ -1390,15 +1390,75 @@
             }
 
             listContainer.innerHTML = `
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     ${latestDetectedSubdomains.map(sub => `
-                        <label class="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700">
-                            <input type="checkbox" class="subdomain-checkbox" value="${sub}" checked>
-                            <span>${sub}</span>
-                        </label>
+                        <div class="flex items-start gap-2 px-4 py-3 bg-white border border-gray-200 rounded-lg text-sm">
+                            <input type="checkbox" class="subdomain-checkbox mt-1" value="${sub}" checked>
+                            <div class="flex-1 min-w-0">
+                                <div class="font-medium text-gray-700 truncate">${sub}</div>
+                                <div class="subdomain-cert-info-${sub.replace(/\./g, '-')} text-xs text-gray-500 mt-1">Loading cert info...</div>
+                            </div>
+                        </div>
                     `).join('')}
                 </div>
             `;
+
+            // Fetch cert info for each subdomain
+            latestDetectedSubdomains.forEach(sub => {
+                fetchSubdomainCertInfo(sub);
+            });
+        }
+
+        async function fetchSubdomainCertInfo(domain) {
+            try {
+                const response = await fetch(`/api/cert-info/${domain}`);
+                const certInfo = await response.json();
+                const infoContainer = document.querySelector(`.subdomain-cert-info-${domain.replace(/\./g, '-')}`);
+                
+                if (infoContainer) {
+                    if (certInfo.status === 'ok' && certInfo.expiry) {
+                        const expiryDate = new Date(certInfo.expiry).toLocaleDateString('en-US', { 
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric' 
+                        });
+                        const daysLeft = certInfo.days_until_expiry;
+                        let statusClass = 'text-gray-600';
+                        let statusText = `Expires: ${expiryDate}`;
+                        
+                        if (daysLeft < 0) {
+                            // Expired - use red like weak ciphers warning
+                            statusClass = 'text-red-700 font-medium';
+                            statusText = `Expired ${Math.abs(daysLeft)} days ago`;
+                        } else if (daysLeft < 30) {
+                            // Critical - use red (urgent)
+                            statusClass = 'text-red-700 font-medium';
+                            statusText = `Expires in ${daysLeft} days (urgent)`;
+                        } else if (daysLeft < 90) {
+                            // Warning - use amber
+                            statusClass = 'text-amber-700';
+                            statusText = `Expires in ${daysLeft} days`;
+                        } else {
+                            // Valid - use emerald like security indicators
+                            statusClass = 'text-emerald-700';
+                            statusText = `Valid: ${daysLeft} days left`;
+                        }
+                        
+                        infoContainer.className = `subdomain-cert-info-${domain.replace(/\./g, '-')} text-xs ${statusClass} mt-1`;
+                        infoContainer.innerHTML = statusText;
+                    } else {
+                        infoContainer.className = `subdomain-cert-info-${domain.replace(/\./g, '-')} text-xs text-gray-500 mt-1`;
+                        infoContainer.innerHTML = 'Cert info unavailable';
+                    }
+                }
+            } catch (error) {
+                console.error(`Error fetching cert info for ${domain}:`, error);
+                const infoContainer = document.querySelector(`.subdomain-cert-info-${domain.replace(/\./g, '-')}`);
+                if (infoContainer) {
+                    infoContainer.className = `subdomain-cert-info-${domain.replace(/\./g, '-')} text-xs text-gray-500 mt-1`;
+                    infoContainer.innerHTML = 'Cert info unavailable';
+                }
+            }
         }
 
         function selectAllDiscoveredSubdomains() {
