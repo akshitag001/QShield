@@ -1,0 +1,344 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.4",
+  "cbomVersion": "1.0.0",
+  "generated": "2026-03-31T16:11:15.232569+00:00",
+  "generator": "Q-Shield TLS Scanner",
+  "components": [
+    {
+      "type": "crypto-asset",
+      "name": "TLSv1.2",
+      "cbom:assetType": "protocol",
+      "cbom:strength": "acceptable",
+      "cbom:quantumVulnerable": false,
+      "cbom:sourceEndpoint": "rru.ac.in:443",
+      "cbom:notes": [],
+      "cbom:cryptoProperties": {
+        "version": "TLSv1.2"
+      }
+    },
+    {
+      "type": "crypto-asset",
+      "name": "TLSv1.3",
+      "cbom:assetType": "protocol",
+      "cbom:strength": "strong",
+      "cbom:quantumVulnerable": false,
+      "cbom:sourceEndpoint": "rru.ac.in:443",
+      "cbom:notes": [],
+      "cbom:cryptoProperties": {
+        "version": "TLSv1.3"
+      }
+    },
+    {
+      "type": "crypto-asset",
+      "name": "DHE-RSA-AES256-GCM-SHA384",
+      "cbom:assetType": "cipher_suite",
+      "cbom:strength": "strong",
+      "cbom:quantumVulnerable": true,
+      "cbom:sourceEndpoint": "rru.ac.in:443",
+      "cbom:notes": [],
+      "cbom:cryptoProperties": {
+        "tls_version": "TLSv1.2",
+        "key_exchange": "DHE",
+        "authentication": "RSA",
+        "encryption": "AES256-GCM",
+        "hash": "SHA384"
+      }
+    },
+    {
+      "type": "crypto-asset",
+      "name": "DHE",
+      "cbom:assetType": "key_exchange",
+      "cbom:strength": "strong",
+      "cbom:quantumVulnerable": true,
+      "cbom:sourceEndpoint": "rru.ac.in:443",
+      "cbom:notes": [],
+      "cbom:cryptoProperties": {
+        "algorithm": "DHE",
+        "type": "classical",
+        "is_hybrid": false
+      }
+    },
+    {
+      "type": "crypto-asset",
+      "name": "SHA384",
+      "cbom:assetType": "hash_algorithm",
+      "cbom:strength": "strong",
+      "cbom:quantumVulnerable": false,
+      "cbom:sourceEndpoint": "rru.ac.in:443",
+      "cbom:notes": [],
+      "cbom:cryptoProperties": {
+        "algorithm": "SHA384"
+      }
+    },
+    {
+      "type": "crypto-asset",
+      "name": "ECDHE-RSA-AES128-GCM-SHA256",
+      "cbom:assetType": "cipher_suite",
+      "cbom:strength": "acceptable",
+      "cbom:quantumVulnerable": true,
+      "cbom:sourceEndpoint": "rru.ac.in:443",
+      "cbom:notes": [],
+      "cbom:cryptoProperties": {
+        "tls_version": "TLSv1.2",
+        "key_exchange": "ECDHE",
+        "authentication": "RSA",
+        "encryption": "AES128-GCM",
+        "hash": "SHA256"
+      }
+    },
+    {
+      "type": "crypto-asset",
+      "name": "ECDHE",
+      "cbom:assetType": "key_exchange",
+      "cbom:strength": "strong",
+      "cbom:quantumVulnerable": true,
+      "cbom:sourceEndpoint": "rru.ac.in:443",
+      "cbom:notes": [],
+      "cbom:cryptoProperties": {
+        "algorithm": "ECDHE",
+        "type": "classical",
+        "is_hybrid": false
+      }
+    },
+    {
+      "type": "crypto-asset",
+      "name": "SHA256",
+      "cbom:assetType": "hash_algorithm",
+      "cbom:strength": "strong",
+      "cbom:quantumVulnerable": false,
+      "cbom:sourceEndpoint": "rru.ac.in:443",
+      "cbom:notes": [],
+      "cbom:cryptoProperties": {
+        "algorithm": "SHA256"
+      }
+    },
+    {
+      "type": "crypto-asset",
+      "name": "ECDHE-RSA-AES256-GCM-SHA384",
+      "cbom:assetType": "cipher_suite",
+      "cbom:strength": "strong",
+      "cbom:quantumVulnerable": true,
+      "cbom:sourceEndpoint": "rru.ac.in:443",
+      "cbom:notes": [],
+      "cbom:cryptoProperties": {
+        "tls_version": "TLSv1.2",
+        "key_exchange": "ECDHE",
+        "authentication": "RSA",
+        "encryption": "AES256-GCM",
+        "hash": "SHA384"
+      }
+    },
+    {
+      "type": "crypto-asset",
+      "name": "ECDHE-RSA-CHACHA20-POLY1305",
+      "cbom:assetType": "cipher_suite",
+      "cbom:strength": "strong",
+      "cbom:quantumVulnerable": true,
+      "cbom:sourceEndpoint": "rru.ac.in:443",
+      "cbom:notes": [],
+      "cbom:cryptoProperties": {
+        "tls_version": "TLSv1.2",
+        "key_exchange": "ECDHE",
+        "authentication": "RSA",
+        "encryption": "CHACHA20-POLY1305",
+        "hash": null
+      }
+    },
+    {
+      "type": "crypto-asset",
+      "name": "TLS_AES_128_GCM_SHA256",
+      "cbom:assetType": "cipher_suite",
+      "cbom:strength": "acceptable",
+      "cbom:quantumVulnerable": true,
+      "cbom:sourceEndpoint": "rru.ac.in:443",
+      "cbom:notes": [],
+      "cbom:cryptoProperties": {
+        "tls_version": "TLSv1.3",
+        "key_exchange": "X25519MLKEM768",
+        "authentication": null,
+        "encryption": "AES-128-GCM",
+        "hash": "SHA256"
+      }
+    },
+    {
+      "type": "crypto-asset",
+      "name": "X25519MLKEM768",
+      "cbom:assetType": "hybrid_key_exchange",
+      "cbom:strength": "strong",
+      "cbom:quantumVulnerable": false,
+      "cbom:sourceEndpoint": "rru.ac.in:443",
+      "cbom:notes": [
+        "Hybrid key exchange: X25519MLKEM768"
+      ],
+      "cbom:cryptoProperties": {
+        "algorithm": "X25519MLKEM768",
+        "type": "hybrid_pqc",
+        "is_hybrid": true
+      }
+    },
+    {
+      "type": "crypto-asset",
+      "name": "CN=rru.ac.in",
+      "cbom:assetType": "certificate",
+      "cbom:strength": "strong",
+      "cbom:quantumVulnerable": true,
+      "cbom:sourceEndpoint": "rru.ac.in:443",
+      "cbom:notes": [],
+      "cbom:cryptoProperties": {
+        "subject": "CN=rru.ac.in",
+        "issuer": "CN=R12,O=Let's Encrypt,C=US",
+        "valid_from": "2026-02-10T09:33:14+00:00",
+        "valid_to": "2026-05-11T09:33:13+00:00",
+        "signature_algorithm": "SHA256withRSA",
+        "public_key_algorithm": "RSA",
+        "public_key_size": 2048,
+        "chain_length": 2,
+        "san": [
+          "DNS:rru.ac.in"
+        ],
+        "serial_number": "6B5C0C1E7683E429AA89457F118735A453B"
+      }
+    },
+    {
+      "type": "crypto-asset",
+      "name": "RSA 2048-bit",
+      "cbom:assetType": "public_key",
+      "cbom:strength": "strong",
+      "cbom:quantumVulnerable": true,
+      "cbom:sourceEndpoint": "rru.ac.in:443",
+      "cbom:notes": [],
+      "cbom:cryptoProperties": {
+        "algorithm": "RSA",
+        "key_size": 2048
+      }
+    },
+    {
+      "type": "crypto-asset",
+      "name": "X25519+ML-KEM-768",
+      "cbom:assetType": "hybrid_key_exchange",
+      "cbom:strength": "strong",
+      "cbom:quantumVulnerable": false,
+      "cbom:sourceEndpoint": "rru.ac.in:443",
+      "cbom:notes": [
+        "Post-Quantum Cryptography - Quantum Safe",
+        "Hybrid mode with classical X25519"
+      ],
+      "cbom:cryptoProperties": {
+        "algorithm": "X25519+ML-KEM-768",
+        "raw_name": "X25519MLKEM768",
+        "type": "hybrid_kem",
+        "nist_security_level": 3,
+        "is_hybrid": true,
+        "classical_component": "X25519"
+      }
+    },
+    {
+      "type": "crypto-asset",
+      "name": "X25519+ML-KEM-768",
+      "cbom:assetType": "hybrid_key_exchange",
+      "cbom:strength": "strong",
+      "cbom:quantumVulnerable": false,
+      "cbom:sourceEndpoint": "rru.ac.in:443",
+      "cbom:notes": [
+        "Negotiated PQC key exchange"
+      ],
+      "cbom:cryptoProperties": {
+        "algorithm": "X25519+ML-KEM-768",
+        "raw_name": "X25519MLKEM768",
+        "nist_security_level": 3,
+        "is_hybrid": true,
+        "classical_component": "X25519"
+      }
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "c651d500217af1ea",
+      "dependencyType": "implements"
+    },
+    {
+      "ref": "b4d41bcef7a525c6",
+      "dependencyType": "implements"
+    },
+    {
+      "ref": "b92cb9c9a3aa0beb",
+      "dependencyType": "uses"
+    },
+    {
+      "ref": "d58e04ba990ea212",
+      "dependencyType": "uses"
+    },
+    {
+      "ref": "c85430e392def702",
+      "dependencyType": "implements"
+    },
+    {
+      "ref": "edcbd247c6564bf2",
+      "dependencyType": "uses"
+    },
+    {
+      "ref": "b339a42eff22d003",
+      "dependencyType": "uses"
+    },
+    {
+      "ref": "81aae8f0bcbef636",
+      "dependencyType": "implements"
+    },
+    {
+      "ref": "9b42325f08cabe36",
+      "dependencyType": "uses"
+    },
+    {
+      "ref": "41690be77421dd7a",
+      "dependencyType": "uses"
+    },
+    {
+      "ref": "6f6e89b58de659ac",
+      "dependencyType": "uses"
+    },
+    {
+      "ref": "1784def3c0fb005e",
+      "dependencyType": "implements"
+    },
+    {
+      "ref": "0704c952005591b7",
+      "dependencyType": "uses"
+    },
+    {
+      "ref": "1eaad0e1c16578f2",
+      "dependencyType": "uses"
+    },
+    {
+      "ref": "62f5315dd5550e03",
+      "dependencyType": "implements"
+    },
+    {
+      "ref": "ec9c29d398b53881",
+      "dependencyType": "implements"
+    }
+  ],
+  "summary": {
+    "total_endpoints": 1,
+    "total_assets": 16,
+    "assets_by_type": {
+      "protocol": 2,
+      "cipher_suite": 5,
+      "key_exchange": 2,
+      "hash_algorithm": 2,
+      "hybrid_key_exchange": 3,
+      "certificate": 1,
+      "public_key": 1
+    },
+    "assets_by_strength": {
+      "acceptable": 3,
+      "strong": 13
+    },
+    "quantum_vulnerable_assets": 9,
+    "quantum_safe_assets": 7,
+    "pqc_assets": 3,
+    "endpoints_with_weak_crypto": 0,
+    "endpoints_with_forward_secrecy": 1,
+    "endpoints_pqc_ready": 1
+  }
+}

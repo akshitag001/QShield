@@ -1484,6 +1484,100 @@ def _fetch_certificate_transparency_intelligence(host: str, timeout: int) -> Dic
     return result
 
 
+# ── CDN Detection ─────────────────────────────────────────────────────────────
+
+def _detect_cdn(host: str, timeout: int = 5) -> Dict[str, object]:
+    """Detect CDN using GET requests with full header inspection.
+    
+    Uses tuple patterns: ("header_name", pattern) or ("header_value", pattern)
+    to distinguish between name-based and value-based matching.
+    """
+    
+    cdn_indicators = {
+        "cloudflare": [
+            ("header_name", "cf-ray"),
+            ("header_name", "cf-cache-status"),
+            ("header_value", "cloudflare"),
+        ],
+        "fastly": [
+            ("header_name", "x-fastly-request-id"),
+            ("header_name", "x-served-by"),
+            ("header_name", "x-cache"),
+            ("header_value", "fastly"),
+            ("header_value", "varnish"),
+        ],
+        "vercel": [
+            ("header_name", "x-vercel-cache"),
+            ("header_name", "x-vercel-id"),
+            ("header_value", "vercel"),
+        ],
+        "akamai": [
+            ("header_name", "x-check-cacheable"),
+            ("header_name", "x-akamai-request-id"),
+            ("header_value", "akamaiedge.net"),
+        ],
+        "cloudfront": [
+            ("header_name", "x-amz-cf-id"),
+            ("header_name", "x-amz-cf-pop"),
+            ("header_value", "cloudfront"),
+        ],
+        "azure_cdn": [
+            ("header_name", "x-azure-ref"),
+            ("header_name", "x-ec-custom-error"),
+            ("header_value", "azureedge"),
+        ],
+        "github_pages": [
+            ("header_value", "github.com"),
+            ("header_name", "x-github-request-id"),
+        ],
+    }
+
+    detected = []
+    details = {"method": "urllib_get", "status": "not_attempted"}
+
+    try:
+        # Disable SSL verification for CDN detection (we only care about headers)
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+        
+        # Create GET request with Range header to only fetch 1 byte
+        url = f"https://{host}/"
+        req = urllib.request.Request(url, method="GET")
+        req.add_header("User-Agent", "Q-Shield/1.0")
+        req.add_header("Range", "bytes=0-0")  # Only fetch 1 byte of body
+        
+        # Make request
+        with urllib.request.urlopen(req, context=ssl_context, timeout=max(timeout, 5)) as response:
+            headers = dict(response.headers)
+            headers_lower = {k.lower(): v.lower() for k, v in headers.items()}
+            
+            details["status"] = "success"
+            details["headers_received"] = list(headers_lower.keys())
+            
+            logger.debug(f"[CDN] Headers for {host}: {list(headers_lower.keys())}")
+            
+            # Check for CDN patterns (name vs value matching)
+            for cdn_name, patterns in cdn_indicators.items():
+                for (match_on, pattern) in patterns:
+                    pattern_lower = pattern.lower()
+                    for hname, hvalue in headers_lower.items():
+                        hit = (
+                            (match_on == "header_name" and pattern_lower in hname) or
+                            (match_on == "header_value" and pattern_lower in hvalue)
+                        )
+                        if hit and cdn_name not in detected:
+                            detected.append(cdn_name)
+                            logger.debug(f"[CDN] ✓ {cdn_name}: {hname}={hvalue[:60]}")
+                    
+    except Exception as e:
+        details["status"] = f"failed: {str(e)}"
+        logger.debug(f"[CDN] Error: {e}")
+
+    logger.debug(f"[CDN] Result for {host}: {detected if detected else 'No CDN detected'}")
+    return {"detected": detected, "details": details}
+
+
 # ── Main scan function ────────────────────────────────────────────────────────
 
 def scan_tls(
@@ -1523,6 +1617,9 @@ def scan_tls(
     ocsp_result = _check_ocsp_status(host, port, certificate, timeout)
     ocsp_result["stapling"] = security_features.get("ocsp_stapling")
 
+    # CDN detection
+    cdn_info = _detect_cdn(host, timeout)
+
     _emit("quantum_safety_analysis", {
         "snippets": [
             str(key_exchange_details.get("algorithm") or "KEX unknown"),
@@ -1554,6 +1651,7 @@ def scan_tls(
             certificate, key_exchange_details, tls_versions, real_pqc_detection,
         ),
         "ct_intelligence": _fetch_certificate_transparency_intelligence(host, timeout),
+            "cdn_detection": cdn_info,
     }
 
     _emit("agility_scoring", {

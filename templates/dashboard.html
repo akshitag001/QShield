@@ -1196,6 +1196,14 @@
                 </tr>
             `).join('');
             
+            // CDN Detection summary
+            let cdnSummary = '';
+            if (result.cdn_detection && Array.isArray(result.cdn_detection.detected) && result.cdn_detection.detected.length > 0) {
+                cdnSummary = `<span class="px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-sm font-medium">CDN Detected: ${result.cdn_detection.detected.join(', ')}</span>`;
+            } else {
+                cdnSummary = `<span class="px-4 py-2 bg-gray-100 text-gray-500 border border-gray-200 rounded-full text-sm">No CDN Detected</span>`;
+            }
+
             container.innerHTML = `
                 <div class="flex items-center justify-between mb-8">
                     <div>
@@ -1234,6 +1242,7 @@
                         ${pqcSupport.supported ? '<span class="px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-sm font-medium">✓ PQC Ready</span>' : '<span class="px-4 py-2 bg-gray-100 text-gray-500 border border-gray-200 rounded-full text-sm">✗ Not PQC Ready</span>'}
                         ${(result.key_exchange_details?.algorithm || '').toUpperCase().includes('MLKEM') || (result.key_exchange_details?.algorithm || '').toUpperCase().includes('KYBER') ? '<span class="px-4 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full text-sm font-medium">✓ Hybrid Key Exchange Detected</span>' : '<span class="px-4 py-2 bg-gray-100 text-gray-500 border border-gray-200 rounded-full text-sm">• Hybrid Key Exchange Not Observed</span>'}
                         ${result.security_features?.weak_ciphers_detected ? '<span class="px-4 py-2 bg-red-50 text-red-700 border border-red-200 rounded-full text-sm font-medium">⚠ Weak Ciphers</span>' : '<span class="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-sm font-medium">✓ Strong Ciphers Only</span>'}
+                        ${cdnSummary}
                     </div>
                     <p class="text-sm text-gray-600 mt-3"><span class="font-medium">Negotiated Key Exchange:</span> ${result.key_exchange_details?.algorithm || 'Unavailable in current probe'}</p>
                     <p class="text-sm text-gray-600 mt-1"><span class="font-medium">PQC Detection Engine:</span> ${pqcDetectionMethod} | <span class="font-medium">OpenSSL:</span> ${pqcOpenSslVersion}</p>

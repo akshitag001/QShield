@@ -40,6 +40,11 @@ Thumbs.db
 # Logs
 *.log
 
+# Sensitive files
+.env
+.env.*
+*.sqlite3
+
 # Local config
 .env
 .env.local
