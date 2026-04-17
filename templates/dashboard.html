@@ -1451,7 +1451,10 @@
                         ${pqcSupport.supported ? '<span class="px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-sm font-medium">✓ PQC Ready</span>' : '<span class="px-4 py-2 bg-gray-100 text-gray-500 border border-gray-200 rounded-full text-sm">✗ Not PQC Ready</span>'}
                         ${(() => {
                             // Check for hybrid key exchange in key_exchange_details
-                            const hasHybridInAlgo = (result.key_exchange_details?.algorithm || '').toUpperCase().includes('MLKEM') || (result.key_exchange_details?.algorithm || '').toUpperCase().includes('KYBER');
+                            const algo = (result.key_exchange_details?.algorithm || '').toUpperCase();
+                            const normalized = (result.key_exchange_details?.normalized_algorithm || '').toUpperCase();
+                            const algoForCheck = normalized || algo;  // Use normalized if available
+                            const hasHybridInAlgo = algoForCheck.includes('MLKEM') || algoForCheck.includes('KYBER');
                             
                             // Also check cipher suites for hybrid patterns
                             const hasHybridInCiphers = (result.cipher_suites || []).some(cs => {
@@ -1468,7 +1471,17 @@
                         ${result.security_features?.weak_ciphers_detected ? '<span class="px-4 py-2 bg-red-50 text-red-700 border border-red-200 rounded-full text-sm font-medium">⚠ Weak Ciphers</span>' : '<span class="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-sm font-medium">✓ Strong Ciphers Only</span>'}
                         ${cdnSummary}
                     </div>
-                    <p class="text-sm text-gray-600 mt-3"><span class="font-medium">Negotiated Key Exchange:</span> ${result.key_exchange_details?.algorithm || 'Unavailable in current probe'}</p>
+                    <p class="text-sm text-gray-600 mt-3">
+                        <span class="font-medium">Negotiated Key Exchange:</span> 
+                        ${(() => {
+                            const algo = result.key_exchange_details?.algorithm || 'Unavailable';
+                            const normalized = result.key_exchange_details?.normalized_algorithm;
+                            if (normalized && normalized !== algo) {
+                                return `${algo} <span class="text-xs text-gray-500">(standardized as: ${normalized})</span>`;
+                            }
+                            return algo;
+                        })()}
+                    </p>
                     <p class="text-sm text-gray-600 mt-1"><span class="font-medium">PQC Detection Engine:</span> ${pqcDetectionMethod} | <span class="font-medium">OpenSSL:</span> ${pqcOpenSslVersion}</p>
                 </div>
 
