@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     perl \
     cmake \
     ninja-build \
+    pkg-config \
+    libcairo2-dev \
+    libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Build and install OpenSSL 3.x
