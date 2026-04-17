@@ -522,9 +522,12 @@ def _detect_pqc_algorithm(algorithm_str: str) -> Optional[Dict[str, Any]]:
         return None
     
     # Build legacy format return value (for compatibility with rest of code)
+    normalized_name = _normalize_pqc_group_name(algorithm_str)
+    
     return {
         "detected": True,
         "algorithm": algorithm_str,
+        "normalized_algorithm": normalized_name,  # NIST standard name (X25519MLKEM768 vs X25519KYBER768)
         "raw_name": algorithm_str,
         "type": "hybrid_kem" if is_hybrid else "pure_pqc",
         "nist_security_level": 3,  # Conservative default
@@ -1238,6 +1241,7 @@ def _get_key_exchange_details(host: str, port: int, tls_versions: List[str], tim
     """
     details: Dict[str, Any] = {
         "algorithm": None,
+        "normalized_algorithm": None,  # NIST standard name (e.g. X25519MLKEM768 vs X25519KYBER768)
         "curve": None,
         "key_size": None,
         "ephemeral": None,
@@ -1289,6 +1293,9 @@ def _get_key_exchange_details(host: str, port: int, tls_versions: List[str], tim
                             details["pqc"] = pqc_info
                             # Update algorithm to the PQC name
                             details["algorithm"] = pqc_info.get("algorithm", cipher_name)
+                            # Copy normalized_algorithm to top level for dashboard display
+                            if pqc_info.get("normalized_algorithm"):
+                                details["normalized_algorithm"] = pqc_info.get("normalized_algorithm")
                         elif analysis["is_hybrid"] or analysis["is_pqc"]:
                             # Universal detection found hybrid/PQC even if hardcoded list didn't
                             details["algorithm"] = f"{'/'.join(analysis['classical_tokens'])}+{'/'.join(analysis['pqc_tokens'])}"
@@ -1303,6 +1310,9 @@ def _get_key_exchange_details(host: str, port: int, tls_versions: List[str], tim
                         pqc_info = pqc_probe["algorithms_detected"][0]
                         details["pqc"] = pqc_info
                         details["algorithm"] = pqc_info.get("algorithm", details.get("algorithm"))
+                        # Copy normalized_algorithm if available
+                        if pqc_info.get("normalized_algorithm"):
+                            details["normalized_algorithm"] = pqc_info.get("normalized_algorithm")
                         if not details.get("curve") and pqc_probe.get("negotiated_group"):
                             details["curve"] = pqc_probe["negotiated_group"]
 
