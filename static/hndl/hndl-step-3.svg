@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 200" width="280" height="200" fill="none">
+  <defs>
+    <linearGradient id="s3-card-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F8FAFC"/>
+      <stop offset="100%" stop-color="#F1F5F9"/>
+    </linearGradient>
+    <linearGradient id="s3-qc-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#4338CA"/>
+    </linearGradient>
+    <radialGradient id="s3-pulse-grad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="s3-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#0F172A" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <!-- Card background -->
+  <rect x="16" y="16" width="248" height="168" rx="16" fill="url(#s3-card-bg)" filter="url(#s3-shadow)"/>
+  <rect x="16" y="16" width="248" height="168" rx="16" stroke="#E2E8F0" stroke-width="1"/>
+
+  <!-- Step badge -->
+  <rect x="32" y="32" width="52" height="22" rx="11" fill="#F5F3FF"/>
+  <text x="58" y="47" font-family="Georgia, serif" font-size="11" font-weight="600" fill="#7C3AED" text-anchor="middle">Step 3</text>
+
+  <!-- Pulse rings -->
+  <circle cx="140" cy="92" r="58" fill="url(#s3-pulse-grad)"/>
+  <circle cx="140" cy="92" r="44" stroke="#8B5CF6" stroke-width="0.5" opacity="0.25" fill="none"/>
+  <circle cx="140" cy="92" r="34" stroke="#8B5CF6" stroke-width="0.5" opacity="0.2" fill="none"/>
+
+  <!-- Quantum processor core -->
+  <g transform="translate(140, 92)">
+    <!-- Outer ring -->
+    <circle cx="0" cy="0" r="26" fill="#EDE9FE" stroke="#C4B5FD" stroke-width="1.5"/>
+    <!-- Inner chip -->
+    <rect x="-14" y="-14" width="28" height="28" rx="5" fill="url(#s3-qc-grad)"/>
+    <!-- Qubit grid dots -->
+    <circle cx="-6" cy="-6" r="2.5" fill="#A78BFA"/>
+    <circle cx="0" cy="-6" r="2.5" fill="#C4B5FD"/>
+    <circle cx="6" cy="-6" r="2.5" fill="#A78BFA"/>
+    <circle cx="-6" cy="0" r="2.5" fill="#C4B5FD"/>
+    <circle cx="0" cy="0" r="2.5" fill="white" opacity="0.9"/>
+    <circle cx="6" cy="0" r="2.5" fill="#C4B5FD"/>
+    <circle cx="-6" cy="6" r="2.5" fill="#A78BFA"/>
+    <circle cx="0" cy="6" r="2.5" fill="#C4B5FD"/>
+    <circle cx="6" cy="6" r="2.5" fill="#A78BFA"/>
+    <!-- Connector lines between qubits -->
+    <line x1="-6" y1="-6" x2="6" y2="-6" stroke="white" stroke-width="0.5" opacity="0.4"/>
+    <line x1="-6" y1="0" x2="6" y2="0" stroke="white" stroke-width="0.5" opacity="0.4"/>
+    <line x1="-6" y1="6" x2="6" y2="6" stroke="white" stroke-width="0.5" opacity="0.4"/>
+    <line x1="-6" y1="-6" x2="-6" y2="6" stroke="white" stroke-width="0.5" opacity="0.4"/>
+    <line x1="0" y1="-6" x2="0" y2="6" stroke="white" stroke-width="0.5" opacity="0.4"/>
+    <line x1="6" y1="-6" x2="6" y2="6" stroke="white" stroke-width="0.5" opacity="0.4"/>
+    <!-- Chip pins -->
+    <rect x="-2" y="-18" width="4" height="5" rx="1" fill="#7C3AED" opacity="0.6"/>
+    <rect x="-2" y="13" width="4" height="5" rx="1" fill="#7C3AED" opacity="0.6"/>
+    <rect x="-18" y="-2" width="5" height="4" rx="1" fill="#7C3AED" opacity="0.6"/>
+    <rect x="13" y="-2" width="5" height="4" rx="1" fill="#7C3AED" opacity="0.6"/>
+  </g>
+
+  <!-- Quantum wave line -->
+  <path d="M 30 142 Q 55 134 80 142 Q 105 150 130 142 Q 155 134 180 142 Q 205 150 230 142 Q 245 138 250 142" stroke="#8B5CF6" stroke-width="1.5" fill="none" opacity="0.4" stroke-linecap="round"/>
+
+  <!-- Label -->
+  <text x="140" y="164" font-family="'Courier New', monospace" font-size="9" fill="#7C3AED" text-anchor="middle" letter-spacing="0.5">QUANTUM ADVANTAGE ACHIEVED</text>
+
+  <!-- Title -->
+  <text x="140" y="178" font-family="Georgia, serif" font-size="12" font-weight="600" fill="#1E293B" text-anchor="middle">Quantum Computer Arrives</text>
+</svg>

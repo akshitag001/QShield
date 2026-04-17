@@ -1,0 +1,273 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" fill="none">
+  <defs>
+    <linearGradient id="bg-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F8FAFC"/>
+      <stop offset="100%" stop-color="#F1F5F9"/>
+    </linearGradient>
+    <filter id="card-shadow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#0F172A" flood-opacity="0.08"/>
+    </filter>
+    <filter id="red-shadow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#EF4444" flood-opacity="0.15"/>
+    </filter>
+    <linearGradient id="lock-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <linearGradient id="archive-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#64748B"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <linearGradient id="qc-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#4338CA"/>
+    </linearGradient>
+    <linearGradient id="card1-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F8FAFC"/>
+      <stop offset="100%" stop-color="#F1F5F9"/>
+    </linearGradient>
+    <linearGradient id="card4-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFF8F8"/>
+      <stop offset="100%" stop-color="#FEF2F2"/>
+    </linearGradient>
+    <radialGradient id="q-pulse" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="risk-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#EF4444" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#EF4444" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Main background -->
+  <rect width="1200" height="600" fill="url(#bg-grad)"/>
+
+  <!-- Header -->
+  <text x="600" y="52" font-family="Georgia, serif" font-size="28" font-weight="700" fill="#0F172A" text-anchor="middle" letter-spacing="-0.5">Harvest Now, Decrypt Later</text>
+  <text x="600" y="78" font-family="'Courier New', monospace" font-size="13" fill="#64748B" text-anchor="middle" letter-spacing="2">QUANTUM CRYPTOGRAPHIC THREAT TIMELINE</text>
+
+  <!-- Connector lines between cards -->
+  <!-- 1→2 -->
+  <line x1="318" y1="310" x2="368" y2="310" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <polygon points="368,306 378,310 368,314" fill="#CBD5E1"/>
+  <!-- 2→3 -->
+  <line x1="568" y1="310" x2="618" y2="310" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <polygon points="618,306 628,310 618,314" fill="#CBD5E1"/>
+  <!-- 3→4 -->
+  <line x1="818" y1="310" x2="868" y2="310" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <polygon points="868,306 878,310 868,314" fill="#CBD5E1"/>
+
+  <!-- ═══ CARD 1: Encrypted Today ═══ -->
+  <g transform="translate(60, 115)">
+    <rect width="260" height="390" rx="20" fill="url(#card1-bg)" filter="url(#card-shadow)"/>
+    <rect width="260" height="390" rx="20" stroke="#E2E8F0" stroke-width="1" fill="none"/>
+
+    <!-- Step badge -->
+    <rect x="16" y="16" width="60" height="26" rx="13" fill="#EFF6FF"/>
+    <text x="46" y="33" font-family="Georgia, serif" font-size="12" font-weight="600" fill="#3B82F6" text-anchor="middle">Step 1</text>
+
+    <!-- Icon area -->
+    <circle cx="130" cy="175" r="70" fill="#EFF6FF" opacity="0.6"/>
+    <circle cx="130" cy="175" r="50" fill="#DBEAFE" opacity="0.5"/>
+
+    <!-- Data packet -->
+    <g transform="translate(60, 160)">
+      <rect x="-18" y="-15" width="36" height="30" rx="6" fill="#DBEAFE" stroke="#93C5FD" stroke-width="1.5"/>
+      <rect x="-10" y="-8" width="20" height="3" rx="1.5" fill="#3B82F6" opacity="0.7"/>
+      <rect x="-10" y="-2" width="14" height="3" rx="1.5" fill="#3B82F6" opacity="0.5"/>
+      <rect x="-10" y="4" width="17" height="3" rx="1.5" fill="#3B82F6" opacity="0.4"/>
+    </g>
+
+    <!-- Arrow to lock -->
+    <line x1="82" y1="175" x2="100" y2="175" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="3 2"/>
+    <polygon points="100,171 108,175 100,179" fill="#94A3B8"/>
+
+    <!-- Lock -->
+    <g transform="translate(130, 175)">
+      <circle cx="0" cy="0" r="32" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="1.5"/>
+      <rect x="-12" y="-4" width="24" height="18" rx="4" fill="url(#lock-grad)"/>
+      <path d="M -8 -4 L -8 -11 Q 0 -18 8 -11 L 8 -4" stroke="#1D4ED8" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <circle cx="0" cy="6" r="3.5" fill="white" opacity="0.55"/>
+      <rect x="-1.5" y="6" width="3" height="5" rx="1" fill="white" opacity="0.55"/>
+      <circle cx="0" cy="0" r="32" stroke="#3B82F6" stroke-width="1" opacity="0.25" fill="none"/>
+    </g>
+
+    <!-- Encrypted tag -->
+    <rect x="64" y="238" width="132" height="24" rx="12" fill="#DBEAFE"/>
+    <text x="130" y="254" font-family="'Courier New', monospace" font-size="10" fill="#1D4ED8" text-anchor="middle" letter-spacing="0.5">AES-256 LOCKED</text>
+
+    <!-- Description -->
+    <text x="130" y="295" font-family="Georgia, serif" font-size="13" font-weight="700" fill="#1E293B" text-anchor="middle">Data Encrypted</text>
+    <text x="130" y="312" font-family="Georgia, serif" font-size="13" font-weight="700" fill="#1E293B" text-anchor="middle">Today</text>
+    <text x="130" y="336" font-family="Georgia, serif" font-size="11" fill="#64748B" text-anchor="middle">Your data is secured with</text>
+    <text x="130" y="352" font-family="Georgia, serif" font-size="11" fill="#64748B" text-anchor="middle">today's best encryption.</text>
+    <text x="130" y="374" font-family="Georgia, serif" font-size="11" fill="#3B82F6" text-anchor="middle">✓ Secure now</text>
+  </g>
+
+  <!-- ═══ CARD 2: Attacker Harvests ═══ -->
+  <g transform="translate(380, 115)">
+    <rect width="260" height="390" rx="20" fill="url(#card1-bg)" filter="url(#card-shadow)"/>
+    <rect width="260" height="390" rx="20" stroke="#E2E8F0" stroke-width="1" fill="none"/>
+
+    <!-- Step badge -->
+    <rect x="16" y="16" width="60" height="26" rx="13" fill="#F1F5F9"/>
+    <text x="46" y="33" font-family="Georgia, serif" font-size="12" font-weight="600" fill="#64748B" text-anchor="middle">Step 2</text>
+
+    <!-- Threat actor -->
+    <g transform="translate(80, 165)">
+      <circle cx="0" cy="0" r="28" fill="#FEF2F2" stroke="#FECACA" stroke-width="1.5"/>
+      <rect x="-10" y="-6" width="20" height="14" rx="3" fill="#EF4444" opacity="0.8"/>
+      <line x1="0" y1="-6" x2="0" y2="-15" stroke="#EF4444" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="0" cy="-16.5" r="2.5" fill="#EF4444"/>
+      <rect x="-5" y="-2" width="10" height="2.5" rx="1" fill="white" opacity="0.6"/>
+    </g>
+
+    <!-- Intercept arrow -->
+    <line x1="110" y1="165" x2="130" y2="165" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="3 2"/>
+    <polygon points="130,161 138,165 130,169" fill="#94A3B8"/>
+
+    <!-- Stolen data packet -->
+    <g transform="translate(148, 155)" opacity="0.7">
+      <rect x="0" y="0" width="28" height="20" rx="4" fill="#DBEAFE" stroke="#FCA5A5" stroke-width="1.5" stroke-dasharray="3 2"/>
+      <rect x="4" y="4" width="20" height="2.5" rx="1" fill="#3B82F6" opacity="0.5"/>
+      <rect x="4" y="8.5" width="14" height="2.5" rx="1" fill="#3B82F6" opacity="0.4"/>
+      <rect x="4" y="13" width="17" height="2.5" rx="1" fill="#3B82F6" opacity="0.3"/>
+    </g>
+
+    <!-- Archive box -->
+    <g transform="translate(130, 210)">
+      <rect x="-30" y="-25" width="60" height="45" rx="7" fill="url(#archive-grad)"/>
+      <rect x="-32" y="-30" width="64" height="12" rx="5" fill="#475569"/>
+      <rect x="-32" y="-12" width="64" height="5" rx="2" fill="#1E293B" opacity="0.5"/>
+      <rect x="-7" y="-38" width="14" height="10" rx="3" fill="#94A3B8"/>
+      <circle cx="-10" cy="6" r="2.5" fill="#94A3B8" opacity="0.6"/>
+      <circle cx="0" cy="6" r="2.5" fill="#94A3B8" opacity="0.6"/>
+      <circle cx="10" cy="6" r="2.5" fill="#94A3B8" opacity="0.6"/>
+    </g>
+
+    <rect x="74" y="250" width="112" height="24" rx="12" fill="#F1F5F9"/>
+    <text x="130" y="266" font-family="'Courier New', monospace" font-size="10" fill="#64748B" text-anchor="middle" letter-spacing="0.5">COLD ARCHIVE</text>
+
+    <text x="130" y="295" font-family="Georgia, serif" font-size="13" font-weight="700" fill="#1E293B" text-anchor="middle">Attacker Harvests</text>
+    <text x="130" y="312" font-family="Georgia, serif" font-size="13" font-weight="700" fill="#1E293B" text-anchor="middle">&amp; Stores</text>
+    <text x="130" y="336" font-family="Georgia, serif" font-size="11" fill="#64748B" text-anchor="middle">Encrypted data is captured</text>
+    <text x="130" y="352" font-family="Georgia, serif" font-size="11" fill="#64748B" text-anchor="middle">and stored for the future.</text>
+    <text x="130" y="374" font-family="Georgia, serif" font-size="11" fill="#EF4444" text-anchor="middle">⚠ Harvest underway</text>
+  </g>
+
+  <!-- ═══ CARD 3: Quantum Arrives ═══ -->
+  <g transform="translate(700, 115)">
+    <rect width="260" height="390" rx="20" fill="url(#card1-bg)" filter="url(#card-shadow)"/>
+    <rect width="260" height="390" rx="20" stroke="#DDD6FE" stroke-width="1.5" fill="none"/>
+
+    <!-- Step badge -->
+    <rect x="16" y="16" width="60" height="26" rx="13" fill="#F5F3FF"/>
+    <text x="46" y="33" font-family="Georgia, serif" font-size="12" font-weight="600" fill="#7C3AED" text-anchor="middle">Step 3</text>
+
+    <!-- Quantum pulse rings -->
+    <circle cx="130" cy="175" r="72" fill="url(#q-pulse)"/>
+    <circle cx="130" cy="175" r="55" stroke="#8B5CF6" stroke-width="0.75" opacity="0.2" fill="none"/>
+    <circle cx="130" cy="175" r="38" stroke="#8B5CF6" stroke-width="0.75" opacity="0.25" fill="none"/>
+
+    <!-- Quantum chip -->
+    <g transform="translate(130, 175)">
+      <circle cx="0" cy="0" r="32" fill="#EDE9FE" stroke="#C4B5FD" stroke-width="1.5"/>
+      <rect x="-16" y="-16" width="32" height="32" rx="6" fill="url(#qc-grad)"/>
+      <!-- Qubit grid -->
+      <circle cx="-7" cy="-7" r="3" fill="#A78BFA"/>
+      <circle cx="0" cy="-7" r="3" fill="#C4B5FD"/>
+      <circle cx="7" cy="-7" r="3" fill="#A78BFA"/>
+      <circle cx="-7" cy="0" r="3" fill="#C4B5FD"/>
+      <circle cx="0" cy="0" r="3" fill="white" opacity="0.9"/>
+      <circle cx="7" cy="0" r="3" fill="#C4B5FD"/>
+      <circle cx="-7" cy="7" r="3" fill="#A78BFA"/>
+      <circle cx="0" cy="7" r="3" fill="#C4B5FD"/>
+      <circle cx="7" cy="7" r="3" fill="#A78BFA"/>
+      <!-- Qubit connections -->
+      <line x1="-7" y1="-7" x2="7" y2="-7" stroke="white" stroke-width="0.6" opacity="0.4"/>
+      <line x1="-7" y1="0" x2="7" y2="0" stroke="white" stroke-width="0.6" opacity="0.4"/>
+      <line x1="-7" y1="7" x2="7" y2="7" stroke="white" stroke-width="0.6" opacity="0.4"/>
+      <line x1="-7" y1="-7" x2="-7" y2="7" stroke="white" stroke-width="0.6" opacity="0.4"/>
+      <line x1="0" y1="-7" x2="0" y2="7" stroke="white" stroke-width="0.6" opacity="0.4"/>
+      <line x1="7" y1="-7" x2="7" y2="7" stroke="white" stroke-width="0.6" opacity="0.4"/>
+      <!-- Pins -->
+      <rect x="-2.5" y="-21" width="5" height="6" rx="1" fill="#7C3AED" opacity="0.6"/>
+      <rect x="-2.5" y="15" width="5" height="6" rx="1" fill="#7C3AED" opacity="0.6"/>
+      <rect x="-21" y="-2.5" width="6" height="5" rx="1" fill="#7C3AED" opacity="0.6"/>
+      <rect x="15" y="-2.5" width="6" height="5" rx="1" fill="#7C3AED" opacity="0.6"/>
+    </g>
+
+    <!-- Wave -->
+    <path d="M 20 235 Q 45 228 70 235 Q 95 242 120 235 Q 145 228 170 235 Q 195 242 220 235 Q 235 231 240 235" stroke="#8B5CF6" stroke-width="1.5" fill="none" opacity="0.35" stroke-linecap="round"/>
+
+    <rect x="58" y="250" width="144" height="24" rx="12" fill="#F5F3FF"/>
+    <text x="130" y="266" font-family="'Courier New', monospace" font-size="10" fill="#7C3AED" text-anchor="middle" letter-spacing="0.5">QUANTUM READY</text>
+
+    <text x="130" y="295" font-family="Georgia, serif" font-size="13" font-weight="700" fill="#1E293B" text-anchor="middle">Quantum Computer</text>
+    <text x="130" y="312" font-family="Georgia, serif" font-size="13" font-weight="700" fill="#1E293B" text-anchor="middle">Arrives</text>
+    <text x="130" y="336" font-family="Georgia, serif" font-size="11" fill="#64748B" text-anchor="middle">A sufficiently powerful quantum</text>
+    <text x="130" y="352" font-family="Georgia, serif" font-size="11" fill="#64748B" text-anchor="middle">processor comes online.</text>
+    <text x="130" y="374" font-family="Georgia, serif" font-size="11" fill="#7C3AED" text-anchor="middle">⚡ Decryption imminent</text>
+  </g>
+
+  <!-- ═══ CARD 4: Data Exposed ═══ -->
+  <g transform="translate(1020, 115)">
+    <!-- Danger card -->
+    <rect x="-120" y="0" width="260" height="390" rx="20" fill="url(#card4-bg)" filter="url(#red-shadow)"/>
+    <rect x="-120" y="0" width="260" height="390" rx="20" stroke="#FCA5A5" stroke-width="2" fill="none"/>
+
+    <!-- Risk glow -->
+    <circle cx="10" cy="175" r="80" fill="url(#risk-glow)"/>
+
+    <!-- Step badge -->
+    <rect x="-104" y="16" width="60" height="26" rx="13" fill="#FEE2E2"/>
+    <text x="-74" y="33" font-family="Georgia, serif" font-size="12" font-weight="600" fill="#DC2626" text-anchor="middle">Step 4</text>
+
+    <!-- Danger badge -->
+    <rect x="30" y="16" width="90" height="26" rx="13" fill="#DC2626"/>
+    <text x="75" y="33" font-family="Georgia, serif" font-size="11" font-weight="700" fill="white" text-anchor="middle">⚠ EXPOSED</text>
+
+    <!-- Open broken lock -->
+    <g transform="translate(10, 165)">
+      <circle cx="0" cy="0" r="36" fill="#FEE2E2" stroke="#FCA5A5" stroke-width="2"/>
+      <rect x="-13" y="-4" width="26" height="20" rx="5" fill="#EF4444"/>
+      <!-- Open shackle -->
+      <path d="M -8 -4 L -8 -13 Q -4 -19 4 -17" stroke="#DC2626" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <!-- Crack -->
+      <line x1="-4" y1="2" x2="2" y2="10" stroke="white" stroke-width="1.2" opacity="0.5"/>
+      <line x1="3" y1="2" x2="-1" y2="10" stroke="white" stroke-width="1.2" opacity="0.4"/>
+      <circle cx="0" cy="7" r="3.5" fill="#DC2626"/>
+    </g>
+
+    <!-- Exposed data streams -->
+    <g transform="translate(50, 148)" opacity="0.9">
+      <rect x="0" y="0" width="34" height="26" rx="5" fill="white" stroke="#FCA5A5" stroke-width="1.5"/>
+      <rect x="4" y="5" width="26" height="3" rx="1.5" fill="#EF4444" opacity="0.6"/>
+      <rect x="4" y="11" width="18" height="3" rx="1.5" fill="#EF4444" opacity="0.5"/>
+      <rect x="4" y="17" width="22" height="3" rx="1.5" fill="#EF4444" opacity="0.4"/>
+    </g>
+
+    <!-- Risk meter -->
+    <rect x="-104" y="232" width="228" height="8" rx="4" fill="#FEE2E2"/>
+    <rect x="-104" y="232" width="208" height="8" rx="4" fill="#EF4444"/>
+    <text x="-104" y="256" font-family="'Courier New', monospace" font-size="9" fill="#DC2626" letter-spacing="0.5">RISK LEVEL</text>
+    <text x="124" y="256" font-family="'Courier New', monospace" font-size="9" fill="#DC2626" text-anchor="end" font-weight="700" letter-spacing="0.5">CRITICAL</text>
+
+    <text x="10" y="285" font-family="Georgia, serif" font-size="13" font-weight="700" fill="#991B1B" text-anchor="middle">Encryption Broken —</text>
+    <text x="10" y="302" font-family="Georgia, serif" font-size="13" font-weight="700" fill="#991B1B" text-anchor="middle">Data Exposed</text>
+    <text x="10" y="326" font-family="Georgia, serif" font-size="11" fill="#64748B" text-anchor="middle">Past encryption fails.</text>
+    <text x="10" y="342" font-family="Georgia, serif" font-size="11" fill="#64748B" text-anchor="middle">Sensitive data is readable.</text>
+    <text x="10" y="374" font-family="Georgia, serif" font-size="11" fill="#DC2626" font-weight="600" text-anchor="middle">✕ Post-quantum action needed</text>
+  </g>
+
+  <!-- Bottom tagline -->
+  <text x="600" y="535" font-family="Georgia, serif" font-size="13" fill="#94A3B8" text-anchor="middle">Protect data today with post-quantum cryptography — before the threat arrives.</text>
+
+  <!-- Timeline bar -->
+  <rect x="60" y="550" width="1080" height="3" rx="1.5" fill="#E2E8F0"/>
+  <text x="60" y="572" font-family="'Courier New', monospace" font-size="10" fill="#94A3B8">Today</text>
+  <text x="380" y="572" font-family="'Courier New', monospace" font-size="10" fill="#94A3B8" text-anchor="middle">Near Future</text>
+  <text x="700" y="572" font-family="'Courier New', monospace" font-size="10" fill="#7C3AED" text-anchor="middle">~10 Years</text>
+  <text x="1020" y="572" font-family="'Courier New', monospace" font-size="10" fill="#DC2626" text-anchor="end">Q-Day</text>
+</svg>

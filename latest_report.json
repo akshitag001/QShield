@@ -1,0 +1,570 @@
+{
+  "scan_id": "scan_20260414_110849_b2fed5",
+  "target": "amazon.com",
+  "started_at": "2026-04-14T05:38:49.056351+00:00",
+  "status": "completed",
+  "result": {
+    "host": "amazon.com",
+    "ip_address": "98.87.170.71",
+    "port": 443,
+    "tls_versions_supported": [
+      "TLSv1.2",
+      "TLSv1.3"
+    ],
+    "cipher_suites": [
+      {
+        "tls_version": "TLSv1.2",
+        "cipher_suite": "ECDHE-RSA-AES128-GCM-SHA256",
+        "key_exchange": "ECDHE",
+        "authentication": "RSA",
+        "encryption": "AES128-GCM",
+        "hash": "SHA256"
+      },
+      {
+        "tls_version": "TLSv1.3",
+        "cipher_suite": "TLS_AES_128_GCM_SHA256",
+        "key_exchange": "TLS1.3-Default",
+        "authentication": null,
+        "encryption": "AES-128-GCM",
+        "hash": "SHA256"
+      }
+    ],
+    "key_exchange_details": {
+      "algorithm": "TLS_AES_128_GCM_SHA256",
+      "curve": null,
+      "key_size": null,
+      "ephemeral": true,
+      "pqc": null,
+      "pqc_status": null,
+      "detection_engine": "python_ssl+ctypes",
+      "universal_analysis": null,
+      "pqc_probe": {
+        "supported": false,
+        "algorithms_detected": [],
+        "hybrid_mode": false,
+        "detection_method": "pqc_binary_unavailable",
+        "available": false,
+        "negotiated_group": null
+      }
+    },
+    "certificate": {
+      "subject": "CN=*.peg.a2z.com",
+      "issuer": "CN=DigiCert Global CA G2,O=DigiCert Inc,C=US",
+      "valid_from": "2026-02-02T00:00:00+00:00",
+      "valid_to": "2027-01-23T23:59:59+00:00",
+      "signature_algorithm": "SHA256withRSA",
+      "public_key_algorithm": "RSA",
+      "public_key_size": 2048,
+      "chain_length": null,
+      "san": [
+        "DNS:amazon.co.uk",
+        "DNS:uedata.amazon.co.uk",
+        "DNS:www.amazon.co.uk",
+        "DNS:origin-www.amazon.co.uk",
+        "DNS:*.peg.a2z.com",
+        "DNS:amazon.com",
+        "DNS:amzn.com",
+        "DNS:uedata.amazon.com",
+        "DNS:us.amazon.com",
+        "DNS:www.amazon.com",
+        "DNS:www.amzn.com",
+        "DNS:corporate.amazon.com",
+        "DNS:buybox.amazon.com",
+        "DNS:iphone.amazon.com",
+        "DNS:yp.amazon.com",
+        "DNS:home.amazon.com",
+        "DNS:origin-www.amazon.com",
+        "DNS:origin2-www.amazon.com",
+        "DNS:buckeye-retail-website.amazon.com",
+        "DNS:huddles.amazon.com",
+        "DNS:amazon.de",
+        "DNS:www.amazon.de",
+        "DNS:origin-www.amazon.de",
+        "DNS:amazon.co.jp",
+        "DNS:amazon.jp",
+        "DNS:www.amazon.jp",
+        "DNS:www.amazon.co.jp",
+        "DNS:origin-www.amazon.co.jp",
+        "DNS:*.aa.peg.a2z.com",
+        "DNS:*.ab.peg.a2z.com",
+        "DNS:*.ac.peg.a2z.com",
+        "DNS:origin-www.amazon.com.au",
+        "DNS:www.amazon.com.au",
+        "DNS:*.bz.peg.a2z.com",
+        "DNS:amazon.com.au",
+        "DNS:origin2-www.amazon.co.jp",
+        "DNS:edgeflow.aero.4d5ad1d2b-frontier.amazon.co.jp",
+        "DNS:edgeflow.aero.04f01a85e-frontier.amazon.com.au",
+        "DNS:edgeflow.aero.47cf2c8c9-frontier.amazon.com",
+        "DNS:edgeflow.aero.abe2c2f23-frontier.amazon.de",
+        "DNS:edgeflow.aero.bfbdc3ca1-frontier.amazon.co.uk",
+        "DNS:edgeflow-dp.aero.4d5ad1d2b-frontier.amazon.co.jp",
+        "DNS:edgeflow-dp.aero.04f01a85e-frontier.amazon.com.au",
+        "DNS:edgeflow-dp.aero.47cf2c8c9-frontier.amazon.com",
+        "DNS:edgeflow-dp.aero.bfbdc3ca1-frontier.amazon.co.uk",
+        "DNS:edgeflow-dp.aero.abe2c2f23-frontier.amazon.de",
+        "DNS:shop.business.amazon.com"
+      ],
+      "serial_number": "CFB0F6FA7D79B54964ABD9D4A1EDE61",
+      "version": "v3",
+      "ocsp_responder": "http://ocsp.digicert.com",
+      "issuer_ca_url": "http://cacerts.digicert.com/DigiCertGlobalCAG2.crt"
+    },
+    "ocsp": {
+      "status": "GOOD",
+      "checked": true,
+      "responder": "http://ocsp.digicert.com",
+      "latency": 408,
+      "ocsp_status": "GOOD",
+      "ocsp_checked": true,
+      "ocsp_responder": "http://ocsp.digicert.com",
+      "response_time_ms": 408,
+      "stapling": null
+    },
+    "security_features": {
+      "forward_secrecy": true,
+      "weak_ciphers_detected": false,
+      "ocsp_stapling": null,
+      "secure_renegotiation": null,
+      "pqc_support": {
+        "supported": false,
+        "algorithms_detected": [],
+        "hybrid_mode": false,
+        "detection_method": "python_ssl_primary (python_ssl(available), ctypes_libssl(available), raw_sockets(available), curl(available))",
+        "available_engines": {
+          "python_ssl": "available",
+          "ctypes_libssl": "available",
+          "raw_sockets": "available",
+          "openssl_cli": "unavailable",
+          "openssl_pqc": "unavailable",
+          "curl": "available",
+          "gnutls_cli": "unavailable"
+        }
+      }
+    },
+    "hndl_risk": {
+      "level": "LOW",
+      "reason": "No direct RSA key exchange evidence and shorter crypto exposure window",
+      "explanation": "Attackers can record encrypted traffic now and decrypt later when quantum capabilities mature.",
+      "factors": {
+        "rsa_key_exchange_detected": false,
+        "long_term_data_sensitivity": false
+      }
+    },
+    "pqc_detection": {
+      "checks": [
+        {
+          "algorithm": "Kyber / ML-KEM",
+          "check": "TLS handshake",
+          "detected": false,
+          "evidence": "TLS_AES_128_GCM_SHA256"
+        },
+        {
+          "algorithm": "Dilithium / ML-DSA",
+          "check": "Certificate signature",
+          "detected": false,
+          "evidence": "SHA256withRSA"
+        },
+        {
+          "algorithm": "Falcon",
+          "check": "Certificate signature",
+          "detected": false,
+          "evidence": "SHA256withRSA"
+        },
+        {
+          "algorithm": "SPHINCS+",
+          "check": "Certificate signature",
+          "detected": false,
+          "evidence": "SHA256withRSA"
+        }
+      ],
+      "summary": {
+        "detected_count": 0,
+        "total_checks": 4,
+        "pqc_ready": false
+      },
+      "detection_engines": {
+        "python_ssl": "available",
+        "ctypes_libssl": "available",
+        "raw_sockets": "available",
+        "openssl_cli": "unavailable",
+        "openssl_pqc": "unavailable",
+        "curl": "available",
+        "gnutls_cli": "unavailable"
+      },
+      "detection_method_used": "python_ssl+ctypes"
+    },
+    "crypto_agility_score": {
+      "score": 60,
+      "max_score": 100,
+      "factors": [
+        {
+          "name": "Key algorithm",
+          "weight": 25,
+          "score": 55
+        },
+        {
+          "name": "TLS version",
+          "weight": 20,
+          "score": 85
+        },
+        {
+          "name": "Cipher strength",
+          "weight": 20,
+          "score": 60
+        },
+        {
+          "name": "Key rotation",
+          "weight": 15,
+          "score": 85
+        },
+        {
+          "name": "PQC readiness",
+          "weight": 20,
+          "score": 25
+        }
+      ],
+      "key_exchange_observed": "TLS_AES_128_GCM_SHA256"
+    },
+    "migration_advisor": {
+      "title": "Recommended Migration Path",
+      "recommendations": [
+        {
+          "current": "RSA 2048",
+          "future": "ML-DSA (Dilithium)",
+          "category": "Certificate Signature"
+        },
+        {
+          "current": "TLS 1.3",
+          "future": "PQC Hybrid TLS",
+          "category": "Transport"
+        }
+      ],
+      "standards_reference": "NIST PQC (ML-KEM, ML-DSA, SLH-DSA)"
+    },
+    "ct_intelligence": {
+      "source": "crt.sh",
+      "query_host": "amazon.com",
+      "detected_subdomains": [],
+      "total_detected": 0,
+      "status": "error",
+      "error": "CT lookup failed for 'amazon.com' (attempt 1): HTTP Error 502: Bad Gateway"
+    },
+    "cdn_detection": {
+      "detected": [
+        "fastly"
+      ],
+      "details": {
+        "method": "urllib_get",
+        "status": "success",
+        "headers_received": [
+          "content-type",
+          "server",
+          "x-amz-rid",
+          "vary",
+          "content-encoding",
+          "content-range",
+          "strict-transport-security",
+          "date",
+          "connection",
+          "alt-svc",
+          "x-amzn-cdn-id",
+          "x-cache"
+        ]
+      }
+    }
+  },
+  "cbom": {
+    "cbom_version": "1.0.0",
+    "generated_at": "2026-04-14T05:39:07.135580+00:00",
+    "generator": "Q-Shield TLS Scanner",
+    "endpoints": [
+      {
+        "endpoint": "amazon.com:443",
+        "ip_address": "98.87.170.71",
+        "port": 443,
+        "scan_timestamp": "2026-04-14T05:39:07.135620+00:00",
+        "assets": [
+          {
+            "asset_id": "7322347ecb7d2f24",
+            "asset_type": "protocol",
+            "name": "TLSv1.2",
+            "properties": {
+              "version": "TLSv1.2"
+            },
+            "strength": "acceptable",
+            "quantum_vulnerable": false,
+            "source_endpoint": "amazon.com:443",
+            "notes": []
+          },
+          {
+            "asset_id": "bb0041f3d756b048",
+            "asset_type": "protocol",
+            "name": "TLSv1.3",
+            "properties": {
+              "version": "TLSv1.3"
+            },
+            "strength": "strong",
+            "quantum_vulnerable": false,
+            "source_endpoint": "amazon.com:443",
+            "notes": []
+          },
+          {
+            "asset_id": "b0c1c75fa4074b41",
+            "asset_type": "cipher_suite",
+            "name": "ECDHE-RSA-AES128-GCM-SHA256",
+            "properties": {
+              "tls_version": "TLSv1.2",
+              "key_exchange": "ECDHE",
+              "authentication": "RSA",
+              "encryption": "AES128-GCM",
+              "hash": "SHA256"
+            },
+            "strength": "acceptable",
+            "quantum_vulnerable": true,
+            "source_endpoint": "amazon.com:443",
+            "notes": []
+          },
+          {
+            "asset_id": "297873202a3bd3e6",
+            "asset_type": "key_exchange",
+            "name": "ECDHE",
+            "properties": {
+              "algorithm": "ECDHE",
+              "type": "classical",
+              "is_hybrid": false
+            },
+            "strength": "strong",
+            "quantum_vulnerable": true,
+            "source_endpoint": "amazon.com:443",
+            "notes": []
+          },
+          {
+            "asset_id": "a8471e733c4d4cff",
+            "asset_type": "hash_algorithm",
+            "name": "SHA256",
+            "properties": {
+              "algorithm": "SHA256"
+            },
+            "strength": "strong",
+            "quantum_vulnerable": false,
+            "source_endpoint": "amazon.com:443",
+            "notes": []
+          },
+          {
+            "asset_id": "03836f74ee469d5b",
+            "asset_type": "cipher_suite",
+            "name": "TLS_AES_128_GCM_SHA256",
+            "properties": {
+              "tls_version": "TLSv1.3",
+              "key_exchange": "TLS1.3-Default",
+              "authentication": null,
+              "encryption": "AES-128-GCM",
+              "hash": "SHA256"
+            },
+            "strength": "acceptable",
+            "quantum_vulnerable": true,
+            "source_endpoint": "amazon.com:443",
+            "notes": []
+          },
+          {
+            "asset_id": "273ef52329ee6352",
+            "asset_type": "key_exchange",
+            "name": "TLS1.3-Default",
+            "properties": {
+              "algorithm": "TLS1.3-Default",
+              "type": "unknown",
+              "is_hybrid": false
+            },
+            "strength": "acceptable",
+            "quantum_vulnerable": true,
+            "source_endpoint": "amazon.com:443",
+            "notes": []
+          },
+          {
+            "asset_id": "e02c006109f707e8",
+            "asset_type": "certificate",
+            "name": "CN=*.peg.a2z.com",
+            "properties": {
+              "subject": "CN=*.peg.a2z.com",
+              "issuer": "CN=DigiCert Global CA G2,O=DigiCert Inc,C=US",
+              "valid_from": "2026-02-02T00:00:00+00:00",
+              "valid_to": "2027-01-23T23:59:59+00:00",
+              "signature_algorithm": "SHA256withRSA",
+              "public_key_algorithm": "RSA",
+              "public_key_size": 2048,
+              "chain_length": null,
+              "san": [
+                "DNS:amazon.co.uk",
+                "DNS:uedata.amazon.co.uk",
+                "DNS:www.amazon.co.uk",
+                "DNS:origin-www.amazon.co.uk",
+                "DNS:*.peg.a2z.com",
+                "DNS:amazon.com",
+                "DNS:amzn.com",
+                "DNS:uedata.amazon.com",
+                "DNS:us.amazon.com",
+                "DNS:www.amazon.com",
+                "DNS:www.amzn.com",
+                "DNS:corporate.amazon.com",
+                "DNS:buybox.amazon.com",
+                "DNS:iphone.amazon.com",
+                "DNS:yp.amazon.com",
+                "DNS:home.amazon.com",
+                "DNS:origin-www.amazon.com",
+                "DNS:origin2-www.amazon.com",
+                "DNS:buckeye-retail-website.amazon.com",
+                "DNS:huddles.amazon.com",
+                "DNS:amazon.de",
+                "DNS:www.amazon.de",
+                "DNS:origin-www.amazon.de",
+                "DNS:amazon.co.jp",
+                "DNS:amazon.jp",
+                "DNS:www.amazon.jp",
+                "DNS:www.amazon.co.jp",
+                "DNS:origin-www.amazon.co.jp",
+                "DNS:*.aa.peg.a2z.com",
+                "DNS:*.ab.peg.a2z.com",
+                "DNS:*.ac.peg.a2z.com",
+                "DNS:origin-www.amazon.com.au",
+                "DNS:www.amazon.com.au",
+                "DNS:*.bz.peg.a2z.com",
+                "DNS:amazon.com.au",
+                "DNS:origin2-www.amazon.co.jp",
+                "DNS:edgeflow.aero.4d5ad1d2b-frontier.amazon.co.jp",
+                "DNS:edgeflow.aero.04f01a85e-frontier.amazon.com.au",
+                "DNS:edgeflow.aero.47cf2c8c9-frontier.amazon.com",
+                "DNS:edgeflow.aero.abe2c2f23-frontier.amazon.de",
+                "DNS:edgeflow.aero.bfbdc3ca1-frontier.amazon.co.uk",
+                "DNS:edgeflow-dp.aero.4d5ad1d2b-frontier.amazon.co.jp",
+                "DNS:edgeflow-dp.aero.04f01a85e-frontier.amazon.com.au",
+                "DNS:edgeflow-dp.aero.47cf2c8c9-frontier.amazon.com",
+                "DNS:edgeflow-dp.aero.bfbdc3ca1-frontier.amazon.co.uk",
+                "DNS:edgeflow-dp.aero.abe2c2f23-frontier.amazon.de",
+                "DNS:shop.business.amazon.com"
+              ],
+              "serial_number": "CFB0F6FA7D79B54964ABD9D4A1EDE61"
+            },
+            "strength": "strong",
+            "quantum_vulnerable": true,
+            "source_endpoint": "amazon.com:443",
+            "notes": []
+          },
+          {
+            "asset_id": "8f7521520536d0ac",
+            "asset_type": "public_key",
+            "name": "RSA 2048-bit",
+            "properties": {
+              "algorithm": "RSA",
+              "key_size": 2048
+            },
+            "strength": "strong",
+            "quantum_vulnerable": true,
+            "source_endpoint": "amazon.com:443",
+            "notes": []
+          }
+        ],
+        "tls_versions": [
+          "TLSv1.2",
+          "TLSv1.3"
+        ],
+        "forward_secrecy": true,
+        "weak_crypto_detected": false,
+        "pqc_ready": false,
+        "qars_data": {
+          "qars_score": 53.3,
+          "risk_level": "MEDIUM",
+          "hndl_status": "ACT NOW (Harvest Now Decrypt Later risk)",
+          "data_tier": "transaction"
+        },
+        "pqc_certificate": {
+          "certificate": {
+            "endpoint": "amazon.com:443",
+            "status": "QUANTUM_VULNERABLE",
+            "certified_at": "2026-04-14T05:39:07.137335+00:00",
+            "issuer": "QShield Certificate Authority",
+            "valid_until": "2027-01-01T00:00:00Z"
+          },
+          "signature": "2201a36f29cc477f97230b13eb5606b079a3f513cc1207cb2a4612132422fa9c"
+        }
+      }
+    ],
+    "summary": {
+      "total_endpoints": 1,
+      "total_assets": 9,
+      "assets_by_type": {
+        "protocol": 2,
+        "cipher_suite": 2,
+        "key_exchange": 2,
+        "hash_algorithm": 1,
+        "certificate": 1,
+        "public_key": 1
+      },
+      "assets_by_strength": {
+        "acceptable": 4,
+        "strong": 5
+      },
+      "quantum_vulnerable_assets": 6,
+      "quantum_safe_assets": 3,
+      "pqc_assets": 0,
+      "endpoints_with_weak_crypto": 0,
+      "endpoints_with_forward_secrecy": 1,
+      "endpoints_pqc_ready": 0,
+      "qars_data": {
+        "qars_score": 53.3,
+        "risk_level": "MEDIUM",
+        "hndl_status": "ACT NOW (Harvest Now Decrypt Later risk)",
+        "data_tier": "transaction"
+      }
+    }
+  },
+  "vulnerabilities": {
+    "scan_id": "scan_20260414_110849_b2fed5",
+    "target": "amazon.com",
+    "total_vulnerabilities": 6,
+    "vulnerabilities": [
+      {
+        "asset_type": "cipher_suite",
+        "name": "ECDHE-RSA-AES128-GCM-SHA256",
+        "reason": "Cipher suite uses classical key exchange vulnerable to quantum attacks",
+        "risk_level": "MEDIUM",
+        "recommendation": "Prefer TLS 1.3 cipher suites with PQC key exchange when available"
+      },
+      {
+        "asset_type": "key_exchange",
+        "name": "ECDHE",
+        "reason": "ECDH key exchange uses elliptic curve Diffie-Hellman, vulnerable to quantum attacks",
+        "risk_level": "HIGH",
+        "recommendation": "Enable ML-KEM (Kyber) or hybrid X25519+ML-KEM key exchange"
+      },
+      {
+        "asset_type": "cipher_suite",
+        "name": "TLS_AES_128_GCM_SHA256",
+        "reason": "Uses classical cryptography vulnerable to quantum computing attacks",
+        "risk_level": "MEDIUM",
+        "recommendation": "Prefer TLS 1.3 cipher suites with PQC key exchange when available"
+      },
+      {
+        "asset_type": "key_exchange",
+        "name": "TLS1.3-Default",
+        "reason": "Uses classical cryptography vulnerable to quantum computing attacks",
+        "risk_level": "HIGH",
+        "recommendation": "Plan migration to NIST post-quantum standards (ML-KEM, ML-DSA, SLH-DSA)"
+      },
+      {
+        "asset_type": "certificate",
+        "name": "CN=*.peg.a2z.com",
+        "reason": "Certificate uses RSA signature, forgeable with quantum computer",
+        "risk_level": "HIGH",
+        "recommendation": "Request PQC-signed certificate from CA when available"
+      },
+      {
+        "asset_type": "public_key",
+        "name": "RSA 2048-bit",
+        "reason": "RSA-2048 can be broken by Shor's algorithm on a quantum computer",
+        "risk_level": "HIGH",
+        "recommendation": "Migrate to ML-DSA (Dilithium) or hybrid RSA+ML-DSA certificate"
+      }
+    ]
+  }
+}

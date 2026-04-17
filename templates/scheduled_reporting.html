@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Q-Shield | Scheduled Reporting</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --q-bg: #f8f9fa;
+            --q-card: #ffffff;
+            --q-border: #e5e7eb;
+            --q-text-main: #111827;
+            --q-text-muted: #6b7280;
+            --q-accent: #111827;
+        }
+
+        body {
+            background-color: var(--q-bg);
+            min-height: 100vh;
+            color: var(--q-text-main);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .main-card {
+            background: var(--q-card);
+            border-radius: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            border: 1px solid var(--q-border);
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background-color: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            font-size: 0.875rem;
+            color: var(--q-text-main);
+            transition: all 0.2s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #9ca3af;
+            box-shadow: 0 0 0 4px rgba(243, 244, 246, 1);
+        }
+
+        .input-field:disabled {
+            background-color: #f9fafb;
+            color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .btn-schedule {
+            background-color: #111827;
+            color: #ffffff;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: background-color 0.2s;
+        }
+
+        .btn-schedule:hover {
+            background-color: #1f2937;
+        }
+
+        .label-text {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body class="font-sans text-gray-900">
+    <nav class="sticky top-0 z-30 backdrop-blur-sm bg-white/70 border-b border-gray-200/70">
+        <div class="max-w-7xl mx-auto px-6 py-4">
+            <div class="glass-card rounded-2xl px-5 py-3 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 bg-gray-900 rounded-xl flex items-center justify-center shadow-sm">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                    </div>
+                    <span class="text-xl font-semibold text-gray-900">Q-Shield</span>
+                </div>
+                <div class="hidden md:flex items-center space-x-8 text-sm font-medium text-gray-500">
+                    <details class="nav-dropdown relative">
+                        <summary class="cursor-pointer hover:text-gray-900 transition">Scanner ▾</summary>
+                        <div class="absolute top-full left-0 mt-2 w-44 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-50">
+                            <a href="/#scanner" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Main Scanner</a>
+                            <a href="/vendors" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Vendor Scanner</a>
+                        </div>
+                    </details>
+                    <a href="/#results" class="hover:text-gray-900 transition">Results</a>
+                    <a href="/#history" class="hover:text-gray-900 transition">History</a>
+                    <a href="/scheduled-reporting" class="text-gray-900">Scheduled Reports</a>
+                    <a href="/learn" class="hover:text-gray-900 transition">Learn</a>
+                    {% if current_user.role in ['admin', 'cyber_lead', 'it_lead', 'security_head'] %}
+                    <a href="/logs" class="hover:text-gray-900 transition">Logs</a>
+                    {% endif %}
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="hidden sm:inline text-xs text-gray-500 px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200">
+                        {{ current_user.username }} ({{ current_user.role }})
+                    </span>
+                    <a href="/" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Dashboard</a>
+                    <a href="/logout" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <section class="relative z-10 py-12 pb-24">
+        <div class="max-w-7xl mx-auto px-6 space-y-6">
+            <div class="main-card p-8">
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">Automated Quantum Report Scheduler</h1>
+                <p class="text-sm text-gray-500 mb-6">Create weekly or monthly report emails for selected domain + codomain scope.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
+                    <p class="text-gray-600"><span class="font-semibold">Delivery:</span> Email</p>
+                </div>
+                <p id="scheduleStatus" class="text-sm font-medium"></p>
+            </div>
+
+            <div class="main-card p-8">
+                <h2 class="text-xl font-bold text-gray-900 mb-6">Create Schedule</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    <div>
+                        <label class="label-text">Domain</label>
+                        <input id="domainInput" type="text" placeholder="example.com" class="input-field">
+                    </div>
+                    <div>
+                        <label class="label-text">Codomain (optional)</label>
+                        <input id="codomainInput" type="text" placeholder="api or api.example.com" class="input-field">
+                    </div>
+                    <div>
+                        <label class="label-text">Frequency</label>
+                        <select id="frequencyInput" class="input-field">
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label-text">Delivery Option</label>
+                        <input type="text" value="Email" disabled class="input-field">
+                    </div>
+                    <div>
+                        <label class="label-text">Date</label>
+                        <input id="dateInput" type="date" class="input-field">
+                    </div>
+                    <div>
+                        <label class="label-text">Time (IST)</label>
+                        <input id="timeInput" type="time" class="input-field">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="label-text">Delivery Email</label>
+                        <input id="emailInput" type="email" placeholder="security-team@example.com" class="input-field">
+                    </div>
+                </div>
+                <div class="mt-6 flex items-center gap-4">
+                    <label class="inline-flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+                        <input id="enabledInput" type="checkbox" checked class="w-4 h-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900">
+                        Enable schedule
+                    </label>
+                    <button onclick="createSchedule()" class="btn-schedule">Schedule Report</button>
+                </div>
+            </div>
+
+            <div class="main-card p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-lg font-bold text-gray-900">Scheduled Reports</h2>
+                    <button onclick="loadSchedules()" class="px-4 py-2 bg-white border border-gray-200 hover:border-gray-300 rounded-xl text-sm font-semibold transition-colors">Refresh</button>
+                </div>
+                <div id="scheduleList" class="space-y-4">
+                    <p class="text-sm text-gray-500">Loading schedules...</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        const formatIST = (dateString) => {
+            if (!dateString) return 'Never';
+            try {
+                const d = new Date(dateString);
+                if (isNaN(d)) return dateString; 
+                
+                const formatter = new Intl.DateTimeFormat('en-IN', {
+                    timeZone: 'Asia/Kolkata',
+                    day: '2-digit', month: '2-digit', year: '2-digit',
+                    hour: '2-digit', minute: '2-digit',
+                    hour12: false
+                });
+                
+                const parts = formatter.formatToParts(d);
+                const vals = {};
+                parts.forEach(p => vals[p.type] = p.value);
+                
+                return `${vals.day}-${vals.month}-${vals.year} ${vals.hour}:${vals.minute} IST`;
+            } catch { return dateString; }
+        };
+
+        const formatDateString = (dateStr) => {
+            if (!dateStr) return '';
+            const parts = dateStr.split('-');
+            if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0].slice(-2)}`;
+            return dateStr;
+        };
+
+        async function loadSchedules() {
+            const list = document.getElementById('scheduleList');
+            list.innerHTML = '<p class="text-sm text-gray-500">Loading schedules...</p>';
+            try {
+                const response = await fetch('/api/scheduled-reports');
+                const data = await response.json();
+                if (!response.ok) {
+                    list.innerHTML = `<p class="text-sm text-red-600">Failed to load schedules: ${data.detail || 'Unknown error'}</p>`;
+                    return;
+                }
+
+                if (!data.items || !data.items.length) {
+                    list.innerHTML = '<p class="text-sm text-gray-500">No schedules created yet.</p>';
+                    return;
+                }
+
+                list.innerHTML = data.items.map(item => `
+                    <div class="p-6 border border-gray-100 bg-gray-50/50 rounded-2xl">
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="space-y-1.5 text-sm">
+                                <p class="text-gray-900 font-bold text-base">${item.codomain ? `${item.codomain} / ${item.domain}` : item.domain}</p>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-gray-500">
+                                    <p><span class="font-medium text-gray-700">Frequency:</span> ${item.frequency}</p>
+                                    <p><span class="font-medium text-gray-700">Scheduled:</span> ${formatDateString(item.schedule_date)} ${item.schedule_time} IST</p>
+                                    <p><span class="font-medium text-gray-700">Recipient:</span> ${item.delivery_email}</p>
+                                    <p><span class="font-medium text-gray-700">Next Run:</span> ${item.next_run_at ? formatIST(item.next_run_at) : 'Not scheduled'}</p>
+                                </div>
+                                <p class="text-gray-400 text-xs mt-2">Last sent: ${item.last_sent_at ? formatIST(item.last_sent_at) : 'Never'}</p>
+                            </div>
+                            <div class="flex flex-col items-end gap-3">
+                                <div class="flex items-center gap-2">
+                                    ${item.last_sent_at ? `<span class="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200 shadow-sm flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>Received</span>` : ''}
+                                    <span class="px-3 py-1 rounded-full text-xs font-bold ${item.enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-600'}">${item.enabled ? 'Active' : 'Paused'}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="toggleSchedule('${item.schedule_id}', ${item.enabled ? 'false' : 'true'})" 
+                                        class="px-3 py-1.5 bg-white border border-gray-200 hover:border-gray-300 rounded-lg text-xs font-bold transition-colors">
+                                        ${item.enabled ? 'Pause' : 'Resume'}
+                                    </button>
+                                    <button onclick="deleteSchedule('${item.schedule_id}', '${item.codomain ? item.codomain + ' / ' + item.domain : item.domain}')" 
+                                        class="px-3 py-1.5 bg-white border border-red-200 hover:bg-red-50 hover:border-red-300 rounded-lg text-xs font-bold text-red-600 transition-colors">
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                list.innerHTML = `<p class="text-sm text-red-600">Failed to load schedules: ${error.message}</p>`;
+            }
+        }
+
+        async function createSchedule() {
+            const status = document.getElementById('scheduleStatus');
+            status.textContent = 'Creating schedule...';
+
+            const payload = {
+                domain: document.getElementById('domainInput').value.trim(),
+                codomain: document.getElementById('codomainInput').value.trim() || null,
+                frequency: document.getElementById('frequencyInput').value,
+                schedule_date: document.getElementById('dateInput').value,
+                schedule_time: document.getElementById('timeInput').value,
+                delivery_email: document.getElementById('emailInput').value.trim(),
+                enabled: document.getElementById('enabledInput').checked,
+            };
+
+            if (!payload.domain || !payload.schedule_date || !payload.schedule_time || !payload.delivery_email) {
+                status.textContent = 'Please fill domain, date, time, and delivery email.';
+                status.className = 'text-sm text-red-600';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/scheduled-reports', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    status.textContent = `Failed to create schedule: ${data.detail || 'Unknown error'}`;
+                    status.className = 'text-sm text-red-600';
+                    return;
+                }
+
+                status.textContent = `Schedule created successfully. Next run: ${formatIST(data.next_run_at)}`;
+                status.className = 'text-sm text-emerald-700';
+                loadSchedules();
+            } catch (error) {
+                status.textContent = `Failed to create schedule: ${error.message}`;
+                status.className = 'text-sm text-red-600';
+            }
+        }
+
+        async function toggleSchedule(scheduleId, enabled) {
+            try {
+                const response = await fetch(`/api/scheduled-reports/${scheduleId}/enabled`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled }),
+                });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    alert(`Failed to update schedule: ${data.detail || 'Unknown error'}`);
+                    return;
+                }
+
+                loadSchedules();
+            } catch (error) {
+                alert(`Failed to update schedule: ${error.message}`);
+            }
+        }
+
+        async function deleteSchedule(scheduleId, displayName) {
+            if (!confirm(`Delete scheduled report for "${displayName}"? This cannot be undone.`)) return;
+
+            try {
+                const response = await fetch(`/api/scheduled-reports/${scheduleId}`, {
+                    method: 'DELETE',
+                });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    alert(`Failed to delete schedule: ${data.detail || 'Unknown error'}`);
+                    return;
+                }
+
+                const status = document.getElementById('scheduleStatus');
+                status.textContent = `Schedule for "${displayName}" deleted.`;
+                status.className = 'text-sm text-emerald-700';
+                loadSchedules();
+            } catch (error) {
+                alert(`Failed to delete schedule: ${error.message}`);
+            }
+        }
+
+        loadSchedules();
+    </script>
+</body>
+</html>
