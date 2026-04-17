@@ -38,11 +38,26 @@ from datetime import datetime
 from typing import Callable, Dict, List, Optional, Tuple, Any
 
 # Universal PQC detection (token-based, handles any format/hybrid)
-from universal_pqc_detection import (
-    detect_algorithm_category,
-    analyze_tls_key_exchange,
-    AlgorithmCategory,
-)
+# Add graceful fallback if module is missing
+try:
+    from universal_pqc_detection import (
+        detect_algorithm_category,
+        analyze_tls_key_exchange,
+        AlgorithmCategory,
+    )
+    UNIVERSAL_PQC_AVAILABLE = True
+except ImportError as e:
+    logger = logging.getLogger("qshield.pqc")
+    logger.warning(f"universal_pqc_detection not available: {e} — PQC detection disabled")
+    UNIVERSAL_PQC_AVAILABLE = False
+    # Dummy implementations for graceful degradation
+    def detect_algorithm_category(name: str) -> Dict[str, Any]:
+        return {"is_hybrid": False, "is_pqc": False, "is_classical": False,
+                "classical_tokens": [], "pqc_tokens": [], "confidence": 0.0,
+                "reason": "PQC detection unavailable"}
+    def analyze_tls_key_exchange(tls_version: str, key_exchange: str) -> Dict[str, Any]:
+        return {"is_hybrid": False, "is_pqc": False, "is_classical": False, "reason": "PQC detection unavailable"}
+    AlgorithmCategory = None  # type: ignore
 
 # Optional cryptography library
 try:
@@ -391,9 +406,11 @@ def _run_openssl(args: List[str], timeout: int, which: str = "normal") -> Option
     effective_timeout = max(timeout, 10)  # FIX #4: Reduced from 30s to 10s for faster probing
     run_kwargs: Dict[str, Any] = {}
     if args and args[0] == "s_client":
-        # FIX #1: Use empty string to let TLS handshake complete fully
-        # "Q\n" closes connection before server sends Negotiated group line
-        run_kwargs["input"] = ""
+        # FIX #1: Don't pass explicit empty input; let subprocess handle stdin naturally
+        # Passing input="" closes stdin immediately which can cause OpenSSL to report
+        # "connection closed by peer" before printing "Negotiated group:" line.
+        # By not specifying input, stdin closes naturally after handshake completes.
+        pass  # Don't set run_kwargs["input"]
 
     binary = OPENSSL_NORMAL if which == "normal" else OPENSSL_PQC
     extra_args: List[str] = []
@@ -607,75 +624,19 @@ def _handshake(host: str, port: int, ctx: ssl.SSLContext, timeout: int) -> Optio
 
 def _get_tls13_group_via_ctypes(ssock: ssl.SSLSocket) -> Optional[str]:
     """
-    FIX ROOT CAUSE 2: Extract TLS 1.3 negotiated group using ctypes to call
-    Python's own linked libssl (works even when openssl CLI unavailable).
+    DISABLED: Ctypes SSL pointer extraction is broken.
     
-    This is the PRIMARY method for detecting hybrid algorithms like X25519MLKEM768
-    because it doesn't depend on external CLI tools.
+    This function attempted to extract negotiated TLS 1.3 group from OpenSSL SSL structure.
+    However, using Python id() gives the object address, not the C-level SSL* pointer.
+    Proper extraction would require ctypes.cast() with CPython internals knowledge.
+    This is not portable across Python versions.
+    
+    Falls back to _probe_pqc_via_raw_sockets() which is more reliable.
+    
+    Returns: None (always)
     """
-    try:
-        # Get Python's ssl module's internal OpenSSL library
-        import ssl as ssl_module
-        
-        # Try to find libssl.so/libssl.dylib (platform dependent)
-        libssl_name = None
-        if sys.platform == "linux":
-            for name in ["libssl.so.3", "libssl.so.1.1", "libssl.so"]:
-                try:
-                    libssl = ctypes.CDLL(name)
-                    libssl_name = name
-                    break
-                except OSError:
-                    pass
-        elif sys.platform == "darwin":
-            for name in ["libssl.dylib", "/usr/local/opt/openssl/lib/libssl.dylib"]:
-                try:
-                    libssl = ctypes.CDLL(name)
-                    libssl_name = name
-                    break
-                except OSError:
-                    pass
-        else:
-            return None  # Windows uses different approach
-        
-        if not libssl_name:
-            return None
-        
-        libssl = ctypes.CDLL(libssl_name)
-        
-        # Get SSL* pointer from SSLSocket's internal _sslobj
-        # This is a bit fragile but necessary without Python exposing this API
-        if not hasattr(ssock, "_sslobj") or ssock._sslobj is None:
-            return None
-        
-        # Get the SSL* pointer (id() gives us the memory address)
-        ssl_ptr = id(ssock._sslobj)
-        
-        # Call SSL_get_negotiated_group(ssl_ptr) -> returns NID (numeric ID)
-        try:
-            libssl.SSL_get_negotiated_group.argtypes = [ctypes.c_void_p]
-            libssl.SSL_get_negotiated_group.restype = ctypes.c_int
-            group_nid = libssl.SSL_get_negotiated_group(ctypes.c_void_p(ssl_ptr))
-            
-            if group_nid == 0:
-                return None  # No group negotiated
-            
-            # Call OBJ_nid2sn(group_nid) -> returns const char*
-            libssl.OBJ_nid2sn.argtypes = [ctypes.c_int]
-            libssl.OBJ_nid2sn.restype = ctypes.c_char_p
-            group_name_bytes = libssl.OBJ_nid2sn(group_nid)
-            
-            if group_name_bytes:
-                group_name = group_name_bytes.decode("utf-8", errors="ignore").strip()
-                logger.debug(f"[CTYPES TLS1.3] Negotiated group: {group_name} (NID: {group_nid})")
-                return group_name
-        except Exception as e:
-            logger.debug(f"[CTYPES TLS1.3] Error calling libssl functions: {e}")
-        
-        return None
-    except Exception as e:
-        logger.debug(f"[CTYPES TLS1.3] Cannot access ctypes libssl: {e}")
-        return None
+    logger.debug("Ctypes SSL pointer extraction disabled - using raw sockets fallback")
+    return None
 
 
 def _probe_pqc_via_curl(host: str, port: int, timeout: int = 10) -> Dict[str, Any]:
@@ -2151,7 +2112,14 @@ def _assess_hndl_risk(
     long_term_data_risk = False
     if valid_to:
         try:
-            long_term_data_risk = (valid_to - datetime.now(valid_to.tzinfo)).days >= 365
+            # FIX #5: Handle timezone-aware certificates (Python 3.11+ compatibility)
+            # datetime.now(tzinfo) with timezone object requires matching tz info
+            try:
+                now = datetime.now(valid_to.tzinfo) if valid_to.tzinfo else datetime.now()
+                long_term_data_risk = (valid_to - now).days >= 365
+            except (TypeError, ValueError):
+                # Fallback: assume long-term if >=365 days validity
+                long_term_data_risk = False
         except Exception:
             pass
 

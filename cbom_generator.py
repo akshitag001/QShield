@@ -537,6 +537,7 @@ def scan_result_to_cbom(scan_result: Dict[str, Any], endpoint_label: Optional[st
             properties={
                 "algorithm": alg_name,
                 "raw_name": kx_pqc.get("raw_name"),
+                "normalized_algorithm": kx_pqc.get("normalized_algorithm"),  # NIST FIPS 203 standard name
                 "nist_security_level": kx_pqc.get("nist_security_level"),
                 "is_hybrid": is_hybrid,
                 "classical_component": kx_pqc.get("classical_component"),
