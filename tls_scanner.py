@@ -250,6 +250,67 @@ PQC_ALGORITHMS = {
     "SLHDSA256":         {"name": "SLH-DSA-256",         "type": "signature",  "nist_level": 5},
 }
 
+# ── PQC OID Registry (For Certificate Signature & Public Key Algorithms) ─────────
+# Maps OID dotted-string → (human_name, category, nist_level)
+# Used to identify PQC algorithms in X.509 certificates
+PQC_OID_MAP = {
+    # ── ML-KEM (Kyber) – NIST FIPS 203 ──
+    "1.3.6.1.4.1.22554.5.6.1": ("ML-KEM-512",  "KEM", 1),
+    "1.3.6.1.4.1.22554.5.6.2": ("ML-KEM-768",  "KEM", 3),
+    "1.3.6.1.4.1.22554.5.6.3": ("ML-KEM-1024", "KEM", 5),
+    # Draft OIDs (used by BoringSSL / Cloudflare experiments)
+    "1.3.6.1.4.1.44363.45.1":  ("Kyber512-draft",  "KEM", 1),
+    "1.3.6.1.4.1.44363.45.2":  ("Kyber768-draft",  "KEM", 3),
+    "1.3.6.1.4.1.44363.45.3":  ("Kyber1024-draft", "KEM", 5),
+    
+    # ── ML-DSA (Dilithium) – NIST FIPS 204 ──
+    "1.3.6.1.4.1.2.267.12.4.4":   ("ML-DSA-44", "SIG", 2),
+    "1.3.6.1.4.1.2.267.12.6.5":   ("ML-DSA-65", "SIG", 3),
+    "1.3.6.1.4.1.2.267.12.8.7":   ("ML-DSA-87", "SIG", 5),
+    # Older Dilithium draft OIDs
+    "1.3.6.1.4.1.2.267.7.4.4":    ("Dilithium2", "SIG", 2),
+    "1.3.6.1.4.1.2.267.7.6.5":    ("Dilithium3", "SIG", 3),
+    "1.3.6.1.4.1.2.267.7.8.7":    ("Dilithium5", "SIG", 5),
+    
+    # ── SLH-DSA (SPHINCS+) – NIST FIPS 205 ──
+    "1.3.9999.6.4.1":  ("SPHINCS+-SHA2-128s",  "SIG", 1),
+    "1.3.9999.6.4.4":  ("SPHINCS+-SHA2-128f",  "SIG", 1),
+    "1.3.9999.6.5.1":  ("SPHINCS+-SHA2-192s",  "SIG", 3),
+    "1.3.9999.6.5.3":  ("SPHINCS+-SHA2-256s",  "SIG", 5),
+    "1.3.9999.6.7.1":  ("SPHINCS+-SHAKE-128s", "SIG", 1),
+    "1.3.9999.6.7.4":  ("SPHINCS+-SHAKE-128f", "SIG", 1),
+    
+    # ── Falcon ──
+    "1.3.9999.3.1":    ("Falcon-512",  "SIG", 1),
+    "1.3.9999.3.4":    ("Falcon-1024", "SIG", 5),
+    # NIST round 4 OIDs
+    "1.3.6.1.4.1.311.89.2.1.6": ("Falcon-512-NIST",  "SIG", 1),
+    "1.3.6.1.4.1.311.89.2.1.7": ("Falcon-1024-NIST", "SIG", 5),
+    
+    # ── Hybrid Signature Schemes (classic + PQC) ──
+    "1.3.6.1.4.1.18227.999.2.7.1.1": ("p256_dilithium2",      "HYBRID-SIG", 2),
+    "1.3.6.1.4.1.18227.999.2.7.1.2": ("rsa3072_dilithium2",   "HYBRID-SIG", 2),
+    "1.3.6.1.4.1.18227.999.2.7.2.1": ("p384_dilithium3",      "HYBRID-SIG", 3),
+    "1.3.6.1.4.1.18227.999.2.7.3.1": ("p521_dilithium5",      "HYBRID-SIG", 5),
+    "1.3.6.1.4.1.18227.999.2.7.4.1": ("p256_falcon512",       "HYBRID-SIG", 1),
+    "1.3.6.1.4.1.18227.999.2.7.5.1": ("p256_sphincssha2128f", "HYBRID-SIG", 1),
+}
+
+# ── IANA Named Group Code Points (TLS 1.3 Key Share) ──────────────────────────
+# Maps IANA code → group name (for PQC/hybrid detection)
+PQC_TLS_GROUPS = {
+    0x11ec: "X25519MLKEM768",      # Most common: sc.com, Cloudflare, Google use this
+    0x11eb: "SecP256r1MLKEM768",
+    0x11ed: "SecP384r1MLKEM1024",
+    0xfe30: "X25519Kyber768",      # Older Cloudflare draft
+    0xfe31: "P256Kyber768",
+    0x2F39: "SecP256r1MLKEM768-draft",
+    0x2F3A: "SecP384r1MLKEM1024-draft",
+    0x023a: "Kyber512",
+    0x023c: "Kyber768",
+    0x023d: "Kyber1024",
+}
+
 # ── Logging ───────────────────────────────────────────────────────────────────
 
 logger = logging.getLogger("qshield.pqc")
@@ -742,6 +803,50 @@ def _get_tls_versions_supported(host: str, port: int, timeout: int) -> List[str]
 
 # ── Cipher parsing ────────────────────────────────────────────────────────────
 
+def _lookup_pqc_oid(oid_str: str) -> Optional[Dict[str, Any]]:
+    """Look up PQC algorithm info from X.509 OID string.
+    
+    Returns: {"name": str, "category": str, "nist_level": int} or None
+    """
+    if oid_str not in PQC_OID_MAP:
+        return None
+    name, category, nist_level = PQC_OID_MAP[oid_str]
+    return {"name": name, "category": category, "nist_level": nist_level, "oid": oid_str}
+
+
+def _cipher_risk_level(cipher_name: str) -> str:
+    """Assess cipher security risk level.
+    
+    Returns: "CRITICAL", "WEAK", "MEDIUM", "STRONG", or "UNKNOWN"
+    Ratings:
+    - CRITICAL: Broken/unsafe ciphers (RC4, DES, 3DES, NULL, EXPORT, anonymous, MD5)
+    - WEAK: Deprecated but not completely broken (TLS 1.0, TLS 1.1)
+    - MEDIUM: Acceptable but older (CBC mode, weaker algorithms)
+    - STRONG: Modern secure ciphers (GCM, ChaCha20, modern AEAD)
+    - UNKNOWN: Unclassified
+    """
+    upper = cipher_name.upper()
+    
+    # CRITICAL: Broken algorithms
+    critical_patterns = ["RC4", "DES", "3DES", "NULL", "EXPORT", "ANON", "MD5", "PSK_NULL"]
+    for pattern in critical_patterns:
+        if pattern in upper:
+            return "CRITICAL"
+    
+    # STRONG: Modern AEAD ciphers
+    strong_patterns = ["GCM", "CHACHA20", "AEAD", "POLY1305", "CCM"]
+    for pattern in strong_patterns:
+        if pattern in upper:
+            return "STRONG"
+    
+    # MEDIUM: CBC mode (older but acceptable)
+    if "CBC" in upper:
+        return "MEDIUM"
+    
+    # Default for unknown
+    return "UNKNOWN"
+
+
 def _parse_cipher_name(cipher_name: str) -> Tuple[Optional[str], Optional[str], str, Optional[str]]:
     """Parse cipher name in IANA (TLS_*) or OpenSSL (ECDHE-RSA-*) format."""
     if cipher_name.startswith("TLS_") and "_WITH_" not in cipher_name:
@@ -1060,6 +1165,7 @@ def _collect_cipher_suites(host: str, port: int, tls_versions: List[str], timeou
                             "authentication": auth,
                             "encryption": enc,
                             "hash": hsh,
+                            "risk_level": _cipher_risk_level(negotiated_cipher),  # ✅ NEW: Risk rating
                         })
                         logger.debug(f"[{label} CIPHER] Negotiated: {negotiated_cipher}")
                 finally:
@@ -1091,6 +1197,7 @@ def _collect_cipher_suites(host: str, port: int, tls_versions: List[str], timeou
                         "authentication": auth,
                         "encryption": enc,
                         "hash": hsh,
+                        "risk_level": _cipher_risk_level(negotiated_cipher),  # ✅ NEW: Risk rating
                     })
                     logger.debug(f"[TLS1.3 CIPHER] Negotiated via OpenSSL: {negotiated_cipher}")
         except Exception as e:
@@ -1613,6 +1720,14 @@ def _get_certificate_metadata(host: str, port: int, timeout: int) -> Dict[str, A
                     f"{type(cert.public_key()).__name__.replace('PublicKey','').replace('_','')}"
                 )
             metadata["signature_algorithm"] = sig_alg
+            
+            # ✅ NEW: Check if signature algorithm is PQC-based
+            sig_oid_str = cert.signature_algorithm_oid.dotted_string
+            pqc_sig_info = _lookup_pqc_oid(sig_oid_str)
+            if pqc_sig_info:
+                metadata["signature_algorithm_pqc"] = pqc_sig_info
+                metadata["signature_algorithm"] = f"{pqc_sig_info['name']} (PQC)"
+                logger.debug(f"[CERT PQC] Signature algorithm is PQC: {pqc_sig_info['name']}")
 
             pub_key = cert.public_key()
             if isinstance(pub_key, rsa.RSAPublicKey):
