@@ -7,12 +7,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     build-essential \
     libssl-dev \
+    python3-dev \
     git \
     perl \
     cmake \
     ninja-build \
     pkg-config \
     libcairo2-dev \
+    libpng-dev \
+    libjpeg-dev \
     libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
