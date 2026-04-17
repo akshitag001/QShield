@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import ipaddress
 import io
+import asyncio
 import json
 import os
 import queue
@@ -57,6 +58,9 @@ from cbom_generator import generate_cbom
 from generate_cbom_outputs import _build_html_cbom, _build_report_context
 from report_pdf import generate_pdf, LATEST_REPORT_PATH
 from tls_scanner import scan_tls
+from scanner import _detect_api_endpoints
+from vpn_scanner import scan_vpn
+from ssh_scanner import scan_ssh
 
 # Firebase Authentication imports
 try:
@@ -735,6 +739,91 @@ def _validate_scan_target_or_raise(target: str) -> str:
     return (target or "").strip()
 
 
+def _build_base_url(target: str) -> Optional[str]:
+    value = (target or "").strip()
+    if not value:
+        return None
+
+    if "://" in value:
+        parsed = urllib.parse.urlparse(value)
+        if not parsed.hostname:
+            return None
+        scheme = parsed.scheme or "https"
+        host = parsed.hostname
+        port = parsed.port
+    else:
+        host, port = _split_target_host_port(value)
+        if not host:
+            return None
+        if port == 80:
+            scheme = "http"
+        else:
+            scheme = "https"
+
+    if port and port not in (80, 443):
+        return f"{scheme}://{host}:{port}"
+    return f"{scheme}://{host}"
+
+
+def _attach_api_endpoints(result: Dict[str, Any], target: str, timeout: int) -> None:
+    if not result or result.get("api_endpoints"):
+        return
+    base_url = _build_base_url(target)
+    if not base_url:
+        return
+    try:
+        api_timeout = max(3, min(timeout, 8))
+        result["api_endpoints"] = _detect_api_endpoints(base_url, timeout=api_timeout)
+    except Exception as exc:
+        logger.debug(f"API endpoint discovery failed for {base_url}: {exc}")
+
+
+def _get_perimeter_target(result: Dict[str, Any], target: str) -> tuple[Optional[str], int]:
+    host = result.get("host") if result else None
+    port = result.get("port") if result else None
+    if not host:
+        host, port_from_target = _split_target_host_port(target)
+        if port is None:
+            port = port_from_target
+    if port is None:
+        port = 443
+    return host, port
+
+
+async def _attach_perimeter_async(result: Dict[str, Any], target: str, timeout: int) -> None:
+    if not result:
+        return
+    if result.get("vpn_gateway") or result.get("ssh_endpoint"):
+        return
+    host, port = _get_perimeter_target(result, target)
+    if not host:
+        return
+
+    perimeter_timeout = max(3, min(timeout, 8))
+    try:
+        vpn_res, ssh_res = await asyncio.gather(
+            scan_vpn(host, port, perimeter_timeout),
+            scan_ssh(host, 22, perimeter_timeout),
+        )
+        if vpn_res and vpn_res.get("detected"):
+            result["vpn_gateway"] = vpn_res
+        if ssh_res and ssh_res.get("detected"):
+            result["ssh_endpoint"] = ssh_res
+    except Exception as exc:
+        logger.debug(f"Perimeter discovery failed for {host}: {exc}")
+
+
+def _attach_perimeter_sync(result: Dict[str, Any], target: str, timeout: int) -> None:
+    try:
+        asyncio.run(_attach_perimeter_async(result, target, timeout))
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(_attach_perimeter_async(result, target, timeout))
+        finally:
+            loop.close()
+
+
 def _friendly_scan_error_detail(error: Exception) -> str:
     message = str(error or "").strip()
     lowered = message.lower()
@@ -1358,6 +1447,8 @@ async def scan_target_public(scan_request: ScanRequest, request: Request):
     
     try:
         result = scan_tls(normalized_target, timeout=scan_request.timeout)
+        _attach_api_endpoints(result, normalized_target, scan_request.timeout)
+        await _attach_perimeter_async(result, normalized_target, scan_request.timeout)
         cbom = generate_cbom([result])
         cbom_dict = cbom.to_dict()
         vulnerabilities = _extract_quantum_vulnerabilities(cbom_dict, normalized_target, "public_scan")
@@ -1389,6 +1480,8 @@ async def scan_target(scan_request: ScanRequest, request: Request, db: Session =
 
     try:
         result = scan_tls(normalized_target, timeout=scan_request.timeout)
+        _attach_api_endpoints(result, normalized_target, scan_request.timeout)
+        await _attach_perimeter_async(result, normalized_target, scan_request.timeout)
         cbom = generate_cbom([result])
         cbom_dict = cbom.to_dict()
         vulnerabilities = _extract_quantum_vulnerabilities(cbom_dict, normalized_target, scan_id)
@@ -1501,6 +1594,8 @@ async def scan_target_stream(
         try:
             worker_user = local_db.get(User, user.id)
             result = scan_tls(normalized_target, timeout=timeout, progress_callback=_progress_callback)
+            _attach_api_endpoints(result, normalized_target, timeout)
+            _attach_perimeter_sync(result, normalized_target, timeout)
             cbom = generate_cbom([result])
             cbom_dict = cbom.to_dict()
             vulnerabilities = _extract_quantum_vulnerabilities(cbom_dict, normalized_target, scan_id)
@@ -1615,6 +1710,8 @@ async def scan_multiple_targets(scan_request: MultiScanRequest, request: Request
         try:
             normalized_target = _validate_scan_target_or_raise(target)
             result = scan_tls(normalized_target, timeout=scan_request.timeout)
+            _attach_api_endpoints(result, normalized_target, scan_request.timeout)
+            await _attach_perimeter_async(result, normalized_target, scan_request.timeout)
             results.append(result)
         except Exception as e:
             errors.append({"target": target, "error": _friendly_scan_error_detail(e)})
@@ -1669,6 +1766,8 @@ async def scan_subdomains(scan_request: SubdomainScanRequest, request: Request, 
         try:
             normalized_target = _validate_scan_target_or_raise(target)
             result = scan_tls(normalized_target, timeout=scan_request.timeout)
+            _attach_api_endpoints(result, normalized_target, scan_request.timeout)
+            await _attach_perimeter_async(result, normalized_target, scan_request.timeout)
             results.append(result)
         except Exception as exc:
             errors.append({"target": target, "error": _friendly_scan_error_detail(exc)})
@@ -2490,6 +2589,8 @@ async def scan_vendors(payload: VendorScanRequest, request: Request, db: Session
 
         try:
             result = scan_tls(target, timeout=timeout)
+            _attach_api_endpoints(result, target, timeout)
+            await _attach_perimeter_async(result, target, timeout)
             cbom = generate_cbom([result])
             cbom_dict = cbom.to_dict()
             vulnerabilities = _extract_quantum_vulnerabilities(cbom_dict, target, scan_id)

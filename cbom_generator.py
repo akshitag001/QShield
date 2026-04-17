@@ -77,6 +77,7 @@ class CryptoAssetType(str, Enum):
     HASH_ALGORITHM = "hash_algorithm"
     SYMMETRIC_CIPHER = "symmetric_cipher"
     PUBLIC_KEY = "public_key"
+    API_ENDPOINT = "api_endpoint"
     PQC_KEM = "pqc_kem"  # Post-Quantum Key Encapsulation
     PQC_SIGNATURE = "pqc_signature"  # Post-Quantum Digital Signature
     HYBRID_KEY_EXCHANGE = "hybrid_key_exchange"  # Classical + PQC hybrid
@@ -582,6 +583,29 @@ def scan_result_to_cbom(scan_result: Dict[str, Any], endpoint_label: Optional[st
         )
         inventory.assets.append(ssh_asset)
 
+    # API endpoint discovery assets (public sites, passive + light active)
+    api_endpoints = scan_result.get("api_endpoints", [])
+    for api in api_endpoints:
+        url = api.get("url") or api.get("path") or "unknown"
+        api_asset = CryptoAsset(
+            asset_id=_generate_asset_id("api_endpoint", url, endpoint),
+            asset_type=CryptoAssetType.API_ENDPOINT,
+            name=url,
+            properties={
+                "path": api.get("path"),
+                "url": api.get("url"),
+                "status": api.get("status"),
+                "content_type": api.get("content_type"),
+                "is_api": api.get("is_api"),
+                "security_analysis": api.get("security_analysis", {}),
+            },
+            strength=CryptoStrength.UNKNOWN,
+            quantum_vulnerable=False,
+            source_endpoint=endpoint,
+            notes=["Detected API endpoint"],
+        )
+        inventory.assets.append(api_asset)
+
     # Deduplicate assets by asset_id
     seen_ids = set()
     unique_assets = []
@@ -649,10 +673,19 @@ def generate_cbom(scan_results: List[Dict[str, Any]]) -> CBOM:
     
     # Issue certificates per endpoint
     for endpoint in cbom.endpoints:
+        strength_counts = {}
+        for asset in endpoint.assets:
+            strength_name = asset.strength.value if isinstance(asset.strength, CryptoStrength) else asset.strength
+            strength_counts[strength_name] = strength_counts.get(strength_name, 0) + 1
+
         endpoint.qars_data = calculate_qars({
             "quantum_vulnerable_assets": sum(1 for a in endpoint.assets if a.quantum_vulnerable),
             "total_assets": len(endpoint.assets),
-            "endpoints_with_weak_crypto": 1 if endpoint.weak_crypto_detected else 0
+            "assets_by_strength": strength_counts,
+            "endpoints_with_weak_crypto": 1 if endpoint.weak_crypto_detected else 0,
+            "endpoints_with_forward_secrecy": 1 if endpoint.forward_secrecy else 0,
+            "endpoints_pqc_ready": 1 if endpoint.pqc_ready else 0,
+            "total_endpoints": 1,
         })
         endpoint.pqc_certificate = issue_certificate(endpoint.endpoint, endpoint.pqc_ready, endpoint.weak_crypto_detected)
     

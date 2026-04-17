@@ -574,6 +574,9 @@
 
                 <!-- Network Perimeter Tab -->
                 <div id="perimeter-tab" class="inventory-tab hidden">
+                    <p class="text-xs text-gray-500 mb-3">
+                        Perimeter checks probe common VPN and SSH entry points on the host.
+                    </p>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead>
@@ -1995,12 +1998,17 @@
             const ip = scanResult.ip_address || 'N/A';
             const tlsVersion = scanResult.tls_version || 'Unknown';
             const certificate = scanResult.certificate || {};
-            const apiEndpoints = scanResult.api_endpoints || [];
+            const apiEndpoints = Array.isArray(scanResult.api_endpoints) ? scanResult.api_endpoints : [];
             const cipherSuites = scanResult.cipher_suites || [];
             
             let cbomEndpoint = null;
             if (latestCbomData && latestCbomData.endpoints) {
-                cbomEndpoint = latestCbomData.endpoints.find(e => e.endpoint === host);
+                const hostKey = `${host}`;
+                const hostPortKey = `${host}:${port}`;
+                cbomEndpoint = latestCbomData.endpoints.find(e => {
+                    const endpointValue = (e.endpoint || '').toString();
+                    return endpointValue === hostKey || endpointValue === hostPortKey || endpointValue.startsWith(`${hostKey}:`);
+                });
             }
 
             // Update summary cards
@@ -2040,12 +2048,41 @@
                 </tr>
             `;
 
+            const cbomApiEndpoints = [];
+            if (cbomEndpoint && Array.isArray(cbomEndpoint.assets)) {
+                cbomEndpoint.assets.forEach(asset => {
+                    if (String(asset.asset_type || '').toLowerCase() === 'api_endpoint') {
+                        const props = asset.properties || {};
+                        cbomApiEndpoints.push({
+                            path: props.path || '',
+                            url: props.url || asset.name || '',
+                            status: props.status,
+                            content_type: props.content_type || '',
+                            is_api: props.is_api,
+                            security_analysis: props.security_analysis || {},
+                        });
+                    }
+                });
+            }
+
+            const combinedApiEndpoints = [...apiEndpoints];
+            const seenApiKeys = new Set(
+                apiEndpoints.map(api => (api.url || api.path || '').toLowerCase()).filter(Boolean)
+            );
+            cbomApiEndpoints.forEach(api => {
+                const key = (api.url || api.path || '').toLowerCase();
+                if (key && !seenApiKeys.has(key)) {
+                    seenApiKeys.add(key);
+                    combinedApiEndpoints.push(api);
+                }
+            });
+
             // Add APIs to table and collect security issues
             let apisHTML = '';
             const publicIssues = [];
             
-            if (apiEndpoints.length > 0) {
-                apiEndpoints.forEach(api => {
+            if (combinedApiEndpoints.length > 0) {
+                combinedApiEndpoints.forEach(api => {
                     const secAnalysis = api.security_analysis || {};
                     const corsStatus = secAnalysis.cors_enabled ? '⚠ Yes' : '✓ No';
                     const corsClass = secAnalysis.cors_enabled ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800';
@@ -2177,11 +2214,9 @@
 
             // Update summary cards
             const totalDomainsCells = document.querySelectorAll('#domains-inventory tr:not(:first-child)').length;
-            const totalAPIsCells = document.querySelectorAll('#api-inventory tr:not(:first-child)').length;
-            
             
             document.getElementById('totalDomains').textContent = Math.max(totalDomainsCells, 1);
-            document.getElementById('totalAPIs').textContent = apiEndpoints.length;
+            document.getElementById('totalAPIs').textContent = combinedApiEndpoints.length;
             document.getElementById('securityIssues').textContent = publicIssues.length;
             
             // Scroll to inventory

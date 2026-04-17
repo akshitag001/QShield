@@ -310,20 +310,37 @@ PQC_OID_MAP = {
     "1.3.6.1.4.1.18227.999.2.7.5.1": ("p256_sphincssha2128f", "HYBRID-SIG", 1),
 }
 
-# ── IANA Named Group Code Points (TLS 1.3 Key Share) ──────────────────────────
-# Maps IANA code → group name (for PQC/hybrid detection)
-PQC_TLS_GROUPS = {
-    0x11ec: "X25519MLKEM768",      # Most common: sc.com, Cloudflare, Google use this
-    0x11eb: "SecP256r1MLKEM768",
-    0x11ed: "SecP384r1MLKEM1024",
-    0xfe30: "X25519Kyber768",      # Older Cloudflare draft
-    0xfe31: "P256Kyber768",
-    0x2F39: "SecP256r1MLKEM768-draft",
-    0x2F3A: "SecP384r1MLKEM1024-draft",
-    0x023a: "Kyber512",
-    0x023c: "Kyber768",
-    0x023d: "Kyber1024",
+# ── IANA TLS Supported Groups Registry (TLS 1.3 Key Share) ────────────────────
+# https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8
+# Maps IANA code → (name, category, nist_level)
+IANA_TLS_GROUPS = {
+    # Classical
+    0x0017: ("secp256r1", "classical", None),
+    0x0018: ("secp384r1", "classical", None),
+    0x0019: ("secp521r1", "classical", None),
+    0x001d: ("x25519", "classical", None),
+    0x001e: ("x448", "classical", None),
+    # ML-KEM hybrids (IANA assigned)
+    0x11eb: ("SecP256r1MLKEM768", "hybrid", 3),
+    0x11ec: ("X25519MLKEM768", "hybrid", 3),
+    0x11ed: ("SecP384r1MLKEM1024", "hybrid", 5),
+    # Older Cloudflare/Google drafts (still seen in the wild)
+    0xfe30: ("X25519Kyber768Draft00", "hybrid_draft", 3),
+    0xfe31: ("P256Kyber768Draft00", "hybrid_draft", 3),
+    # OQS/experimental
+    0x023a: ("Kyber512", "pqc_pure", 1),
+    0x023c: ("Kyber768", "pqc_pure", 3),
+    0x023d: ("Kyber1024", "pqc_pure", 5),
 }
+
+def _group_id_to_name(group_id: int) -> tuple[str, str, Optional[int]]:
+    """
+    Convert IANA group code point to (name, category, nist_level).
+    Falls back to hex string for unknown groups rather than guessing.
+    """
+    if group_id in IANA_TLS_GROUPS:
+        return IANA_TLS_GROUPS[group_id]
+    return (f"unknown_group_0x{group_id:04x}", "unknown", None)
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -523,6 +540,8 @@ def _detect_pqc_algorithm(algorithm_str: str) -> Optional[Dict[str, Any]]:
     
     # Build legacy format return value (for compatibility with rest of code)
     normalized_name = _normalize_pqc_group_name(algorithm_str)
+    registry_info = PQC_ALGORITHMS.get(normalized_name)
+    nist_level = registry_info.get("nist_level") if registry_info else 3
     
     return {
         "detected": True,
@@ -530,7 +549,7 @@ def _detect_pqc_algorithm(algorithm_str: str) -> Optional[Dict[str, Any]]:
         "normalized_algorithm": normalized_name,  # NIST standard name (X25519MLKEM768 vs X25519KYBER768)
         "raw_name": algorithm_str,
         "type": "hybrid_kem" if is_hybrid else "pure_pqc",
-        "nist_security_level": 3,  # Conservative default
+        "nist_security_level": nist_level,
         "is_hybrid": is_hybrid,
         "is_pqc": is_pqc,
         "category": category,
@@ -1470,6 +1489,9 @@ def _probe_pqc_via_raw_sockets(host: str, port: int, timeout: int = 5) -> Dict[s
         "detection_method": "raw_sockets_failed",
         "available": True,
         "negotiated_group": None,
+        "negotiated_group_raw": None,
+        "negotiated_group_id": None,
+        "nist_level": None,
     }
     
     def build_sni(h: str) -> bytes:
@@ -1477,7 +1499,16 @@ def _probe_pqc_via_raw_sockets(host: str, port: int, timeout: int = 5) -> Dict[s
         return struct.pack(">HH", 0, len(hb)+5) + struct.pack(">HBH", len(hb)+3, 0, len(hb)) + hb
         
     try:
-        groups = bytes.fromhex("6399 11ec 118a 001d 0017")
+        offered_group_ids = [
+            0x11ec,  # X25519MLKEM768
+            0x11eb,  # SecP256r1MLKEM768
+            0x11ed,  # SecP384r1MLKEM1024
+            0xfe30,  # X25519Kyber768Draft00
+            0xfe31,  # P256Kyber768Draft00
+            0x001d,  # x25519
+            0x0017,  # secp256r1
+        ]
+        groups = b"".join(struct.pack(">H", gid) for gid in offered_group_ids)
         sg_ext = struct.pack(">HH", 0x000a, len(groups) + 2) + struct.pack(">H", len(groups)) + groups
         
         sig_algs = bytes.fromhex("0403 0804")
@@ -1517,18 +1548,21 @@ def _probe_pqc_via_raw_sockets(host: str, port: int, timeout: int = 5) -> Dict[s
                             idx += 4
                             if etype == 0x0033 and elen >= 2:
                                 gid = struct.unpack(">H", payload[idx:idx+2])[0]
-                                map_g = {0x6399: "X25519MLKEM768", 0x11ec: "X25519KYBER768", 0x118a: "X25519MLKEM768"}
-                                if gid in map_g:
-                                    gname = map_g[gid]
+                                name, category, nist_level = _group_id_to_name(gid)
+                                if category in ("hybrid", "hybrid_draft", "pqc_pure"):
+                                    normalized = _normalize_pqc_group_name(name)
                                     pqc_support["supported"] = True
-                                    pqc_support["hybrid_mode"] = True
-                                    pqc_support["negotiated_group"] = gname
-                                    pqc_support["detection_method"] = "raw_sockets_confirmed"
-                                    
-                                    pinfo = _detect_pqc_algorithm(gname)
+                                    pqc_support["hybrid_mode"] = category.startswith("hybrid")
+                                    pqc_support["negotiated_group"] = normalized
+                                    pqc_support["negotiated_group_raw"] = name
+                                    pqc_support["negotiated_group_id"] = f"0x{gid:04x}"
+                                    pqc_support["nist_level"] = nist_level
+                                    pqc_support["detection_method"] = "raw_sockets_hrr_confirmed"
+
+                                    pinfo = _detect_pqc_algorithm(normalized)
                                     if pinfo:
                                         pqc_support["algorithms_detected"].append(pinfo)
-                                    logger.debug(f"[RAW SOCKET PQC] HRR Confirmed group: {gname}")
+                                    logger.debug(f"[RAW SOCKET PQC] HRR Confirmed group: {name} (0x{gid:04x})")
                                     return pqc_support
                             idx += elen
     except Exception as e:
