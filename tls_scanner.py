@@ -203,40 +203,39 @@ PQC_ALGORITHMS = {
     "X25519MLKEM768":    {"name": "X25519+MLKEM768",   "type": "hybrid_kem", "nist_level": 3, "classical": "X25519"},
     "X25519MLKEM1024":   {"name": "X25519+MLKEM1024",  "type": "hybrid_kem", "nist_level": 5, "classical": "X25519"},
     
-    # X25519 hybrids (Kyber)
-    "X25519KYBER512":    {"name": "X25519+KYBER512",    "type": "hybrid_kem", "nist_level": 1, "classical": "X25519"},
-    "X25519KYBER768":    {"name": "X25519+KYBER768",    "type": "hybrid_kem", "nist_level": 3, "classical": "X25519"},
-    "X25519KYBER1024":   {"name": "X25519+KYBER1024",   "type": "hybrid_kem", "nist_level": 5, "classical": "X25519"},
+    # X25519 hybrids (Kyber) → Now labeled as ML-KEM equivalents (standardized NIST names)
+    "X25519KYBER512":    {"name": "X25519+MLKEM512",    "type": "hybrid_kem", "nist_level": 1, "classical": "X25519"},
+    "X25519KYBER768":    {"name": "X25519+MLKEM768",    "type": "hybrid_kem", "nist_level": 3, "classical": "X25519"},
+    "X25519KYBER1024":   {"name": "X25519+MLKEM1024",   "type": "hybrid_kem", "nist_level": 5, "classical": "X25519"},
     
     # P-256 hybrids (ML-KEM)
     "P256MLKEM768":      {"name": "P256+MLKEM768",    "type": "hybrid_kem", "nist_level": 3, "classical": "P-256"},
     "P256MLKEM1024":     {"name": "P256+MLKEM1024",   "type": "hybrid_kem", "nist_level": 5, "classical": "P-256"},
     
-    # P-256 hybrids (Kyber)
-    "P256KYBER512":      {"name": "P256+KYBER512",      "type": "hybrid_kem", "nist_level": 1, "classical": "P-256"},
-    "P256KYBER768":      {"name": "P256+KYBER768",      "type": "hybrid_kem", "nist_level": 3, "classical": "P-256"},
-    "P256KYBER1024":     {"name": "P256+KYBER1024",     "type": "hybrid_kem", "nist_level": 5, "classical": "P-256"},
+    # P-256 hybrids (Kyber) → Now labeled as ML-KEM equivalents
+    "P256KYBER512":      {"name": "P256+MLKEM512",      "type": "hybrid_kem", "nist_level": 1, "classical": "P-256"},
+    "P256KYBER768":      {"name": "P256+MLKEM768",      "type": "hybrid_kem", "nist_level": 3, "classical": "P-256"},
+    "P256KYBER1024":     {"name": "P256+MLKEM1024",     "type": "hybrid_kem", "nist_level": 5, "classical": "P-256"},
     
     # P-384 hybrids (ML-KEM)
     "P384MLKEM768":      {"name": "P384+MLKEM768",      "type": "hybrid_kem", "nist_level": 3, "classical": "P-384"},
     "P384MLKEM1024":     {"name": "P384+MLKEM1024",     "type": "hybrid_kem", "nist_level": 5, "classical": "P-384"},
     
-    # P-384 hybrids (Kyber)
-    "P384KYBER768":      {"name": "P384+KYBER768",      "type": "hybrid_kem", "nist_level": 3, "classical": "P-384"},
-    "P384KYBER1024":     {"name": "P384+KYBER1024",     "type": "hybrid_kem", "nist_level": 5, "classical": "P-384"},
+    # P-384 hybrids (Kyber) → Now labeled as ML-KEM equivalents
+    "P384KYBER768":      {"name": "P384+MLKEM768",      "type": "hybrid_kem", "nist_level": 3, "classical": "P-384"},
+    "P384KYBER1024":     {"name": "P384+MLKEM1024",     "type": "hybrid_kem", "nist_level": 5, "classical": "P-384"},
     
     # secp256r1 hybrids (ML-KEM)
     "SECP256R1MLKEM768": {"name": "secp256r1+MLKEM768","type": "hybrid_kem", "nist_level": 3, "classical": "secp256r1"},
     "SECP256R1MLKEM1024":{"name": "secp256r1+MLKEM1024","type": "hybrid_kem", "nist_level": 5, "classical": "secp256r1"},
     
-    # secp256r1 hybrids (Kyber)
-    "SECP256R1KYBER512": {"name": "secp256r1+KYBER512", "type": "hybrid_kem", "nist_level": 1, "classical": "secp256r1"},
-    "SECP256R1KYBER768": {"name": "secp256r1+KYBER768", "type": "hybrid_kem", "nist_level": 3, "classical": "secp256r1"},
-    "SECP256R1KYBER1024":{"name": "secp256r1+KYBER1024","type": "hybrid_kem", "nist_level": 5, "classical": "secp256r1"},
+    # secp256r1 hybrids (Kyber) → Now labeled as ML-KEM equivalents
+    "SECP256R1KYBER512": {"name": "secp256r1+MLKEM512", "type": "hybrid_kem", "nist_level": 1, "classical": "secp256r1"},
+    "SECP256R1KYBER768": {"name": "secp256r1+MLKEM768", "type": "hybrid_kem", "nist_level": 3, "classical": "secp256r1"},
+    "SECP256R1KYBER1024":{"name": "secp256r1+MLKEM1024","type": "hybrid_kem", "nist_level": 5, "classical": "secp256r1"},
     
-    # secp384r1 hybrids
-    "SECP384R1MLKEM1024":{"name": "secp384r1+MLKEM1024","type": "hybrid_kem", "nist_level": 5, "classical": "secp384r1"},
-    "SECP384R1KYBER1024":{"name": "secp384r1+KYBER1024","type": "hybrid_kem", "nist_level": 5, "classical": "secp384r1"},
+    # secp384r1 hybrids (Kyber) → Now labeled as ML-KEM equivalents
+    "SECP384R1KYBER1024":{"name": "secp384r1+MLKEM1024","type": "hybrid_kem", "nist_level": 5, "classical": "secp384r1"},
     
     # Pure Signature algorithms
     "MLDSA44":           {"name": "ML-DSA-44",           "type": "signature",  "nist_level": 2},
@@ -718,9 +717,11 @@ def _probe_pqc_via_curl(host: str, port: int, timeout: int = 10) -> Dict[str, An
             match = re.search(pattern, output, re.IGNORECASE)
             if match:
                 algo = match.group(0) if match.groups() else match.group(1) if len(match.groups()) > 0 else "PQC_HYBRID"
+                # ✅ Normalize: "Kyber" → "MLKEM"
+                algo_normalized = _normalize_pqc_group_name(algo.upper().replace("-", "").replace(" ", ""))
                 result["supported"] = True
-                result["algorithm"] = algo
-                logger.debug(f"[CURL PQC] Detected: {algo}")
+                result["algorithm"] = algo_normalized
+                logger.debug(f"[CURL PQC] Detected: {algo} → {algo_normalized}")
                 return result
         
     except (subprocess.SubprocessError, FileNotFoundError, TimeoutError):
@@ -812,6 +813,50 @@ def _lookup_pqc_oid(oid_str: str) -> Optional[Dict[str, Any]]:
         return None
     name, category, nist_level = PQC_OID_MAP[oid_str]
     return {"name": name, "category": category, "nist_level": nist_level, "oid": oid_str}
+
+
+def _normalize_pqc_group_name(group_name: str) -> str:
+    """Normalize PQC group names: convert old Kyber draft names to standardized ML-KEM names.
+    
+    Maps draft names to their NIST FIPS 203 ML-KEM equivalents:
+    - X25519Kyber512/512Draft00 → X25519MLKEM512
+    - X25519Kyber768/768Draft00 → X25519MLKEM768
+    - X25519Kyber1024/1024Draft00 → X25519MLKEM1024
+    - Similar for P-256, P-384, secp variants
+    
+    Also normalizes alternative separators: X25519-ML-KEM-768 → X25519MLKEM768
+    """
+    normalized = group_name.upper().replace("-", "").replace(" ", "").replace("+", "").replace("/", "")
+    
+    # Map old Kyber draft names to ML-KEM standards
+    kyber_to_mlkem = {
+        "X25519KYBER512DRAFT00": "X25519MLKEM512",
+        "X25519KYBER512": "X25519MLKEM512",
+        "X25519KYBER768DRAFT00": "X25519MLKEM768",
+        "X25519KYBER768": "X25519MLKEM768",
+        "X25519KYBER1024DRAFT00": "X25519MLKEM1024",
+        "X25519KYBER1024": "X25519MLKEM1024",
+        "P256KYBER512DRAFT00": "P256MLKEM512",
+        "P256KYBER512": "P256MLKEM512",
+        "P256KYBER768DRAFT00": "P256MLKEM768",
+        "P256KYBER768": "P256MLKEM768",
+        "P256KYBER1024DRAFT00": "P256MLKEM1024",
+        "P256KYBER1024": "P256MLKEM1024",
+        "P384KYBER768DRAFT00": "P384MLKEM768",
+        "P384KYBER768": "P384MLKEM768",
+        "P384KYBER1024DRAFT00": "P384MLKEM1024",
+        "P384KYBER1024": "P384MLKEM1024",
+        "SECP256R1KYBER512DRAFT00": "SECP256R1MLKEM512",
+        "SECP256R1KYBER512": "SECP256R1MLKEM512",
+        "SECP256R1KYBER768DRAFT00": "SECP256R1MLKEM768",
+        "SECP256R1KYBER768": "SECP256R1MLKEM768",
+        "SECP256R1KYBER1024DRAFT00": "SECP256R1MLKEM1024",
+        "SECP256R1KYBER1024": "SECP256R1MLKEM1024",
+        "SECP384R1KYBER1024DRAFT00": "SECP384R1MLKEM1024",
+        "SECP384R1KYBER1024": "SECP384R1MLKEM1024",
+    }
+    
+    return kyber_to_mlkem.get(normalized, normalized)
 
 
 def _cipher_risk_level(cipher_name: str) -> str:
@@ -997,9 +1042,11 @@ def _detect_tls13_key_exchange_dual(host: str, port: int, timeout: int) -> Dict[
             
             if neg_match:
                 group = neg_match.group(1).strip()
-                # Normalize: convert "ML-KEM" to "MLKEM" so PQC detection works
+                # Normalize: convert "ML-KEM" to "MLKEM" and "Kyber" to "MLKEM"
                 # This handles: "X25519-MLKEM768", "X25519 MLKEM768", "X25519+ML-KEM-768" etc.
+                # AND converts old drafts: "X25519Kyber768" → "X25519MLKEM768"
                 group_normalized = re.sub(r'[-_\s/+]+', '', group.upper())
+                group_normalized = _normalize_pqc_group_name(group_normalized)  # ✅ Map Kyber → MLKEM
                 result["key_exchange"] = group_normalized
                 result["pqc_status"]["negotiated_group"] = group_normalized
 
@@ -1045,8 +1092,14 @@ def _detect_tls13_key_exchange_dual(host: str, port: int, timeout: int) -> Dict[
     # ── Step 2: PQC OpenSSL — probe support (never used to set active=True) ──
     pqc_groups_supported: List[str] = []
     if _openssl_available("pqc"):
-        # Don't hardcode groups - use universal detection to find potential hybrids
-        test_groups = ["X25519MLKEM768", "X25519KYBER768", "SECP256R1MLKEM768", "MLKEM768"]
+        # Test both old Kyber draft and new ML-KEM names
+        test_groups = [
+            "X25519MLKEM768", "X25519KYBER768",   # Primary hybrids
+            "X25519MLKEM512", "X25519KYBER512",   # Smaller variant
+            "X25519MLKEM1024", "X25519KYBER1024", # Larger variant
+            "SECP256R1MLKEM768", "P256MLKEM768",  # P-256 variants
+            "MLKEM768",                            # Pure ML-KEM for testing
+        ]
         
         for group in test_groups:
             try:
@@ -1063,10 +1116,12 @@ def _detect_tls13_key_exchange_dual(host: str, port: int, timeout: int) -> Dict[
                         m = re.search(r"Negotiated\s+group:\s*([^\n]+)", pqc_out, re.IGNORECASE)
                     
                     if m:
-                        negotiated = m.group(1).strip().upper().replace("-", "").replace(" ", "")
-                        if negotiated == group.upper() or negotiated == group:
-                            pqc_groups_supported.append(group)
-                            logger.debug(f"[TLS13] PQC OpenSSL confirmed: '{group}'")
+                        negotiated = m.group(1).strip()
+                        # ✅ Normalize: "Kyber" → "MLKEM"
+                        negotiated_norm = re.sub(r'[-_\s/+]+', '', negotiated.upper())
+                        negotiated_norm = _normalize_pqc_group_name(negotiated_norm)
+                        pqc_groups_supported.append(negotiated_norm)
+                        logger.debug(f"[TLS13 PQC] Tested '{group}', server confirmed: '{negotiated_norm}'")
             except Exception:
                 continue
 
