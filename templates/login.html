@@ -5,14 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Q-Shield | Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center px-4 py-8">
+<body class="min-h-screen bg-gradient-to-br from-gray-100 via-blue-50 to-gray-50 flex items-center justify-center px-4 py-8" style="background: linear-gradient(180deg, #f8f8fa 0%, #f2f3f7 100%);">
     <div class="w-full max-w-md">
         <!-- Sign In Tab -->
-        <div id="signin-container" class="bg-white rounded-2xl shadow-lg p-8 border border-gray-200">
+        <div id="signin-container" class="bg-white rounded-2xl shadow-lg p-8 border border-gray-200" style="background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(15, 23, 42, 0.08);">
             <div class="mb-8 text-center">
-                <h1 class="text-3xl font-bold text-[#6B2C3E]">Q-Shield</h1>
-                <p class="text-sm text-gray-600 mt-2">Cryptographic Inventory Scanner</p>
+                <h1 class="text-3xl font-bold" style="color: #111827;">Q-Shield</h1>
+                <p class="text-sm mt-2" style="color: #6b7280;">Cryptographic Inventory Scanner</p>
             </div>
 
             {% if error %}
@@ -23,43 +38,39 @@
 
             <form method="post" action="/login" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-semibold text-gray-800 mb-2" for="username">EMAIL ADDRESS</label>
+                    <label class="block text-sm font-semibold mb-2" style="color: #111827;">EMAIL ADDRESS</label>
                     <input id="username" name="username" type="text" placeholder="your.email@company.com" required 
-                        class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6B2C3E] focus:border-transparent transition" />
+                        class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:border-transparent transition" style="focus:ring-color: rgba(17, 24, 39, 0.1);" />
                 </div>
                 
                 <div>
-                    <label class="block text-sm font-semibold text-gray-800 mb-2" for="password">PASSWORD</label>
+                    <label class="block text-sm font-semibold mb-2" style="color: #111827;">PASSWORD</label>
                     <div class="relative">
                         <input id="signin-password" name="password" type="password" placeholder="Minimum 8 characters" required 
-                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6B2C3E] focus:border-transparent transition" />
-                        <button type="button" onclick="togglePassword('signin-password')" class="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
-                            <span class="text-sm">Show</span>
+                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:border-transparent transition" style="focus:ring-color: rgba(17, 24, 39, 0.1);" />
+                        <button type="button" onclick="togglePassword('signin-password')" class="absolute right-3 top-3 transition" style="color: #6b7280;">
+                            <span class="text-sm hover:font-semibold">Show</span>
                         </button>
                     </div>
                 </div>
 
-                <div class="pt-2">
-                    <a href="#" class="text-sm text-[#6B2C3E] hover:underline font-medium">Magic Link / Forgot Password?</a>
-                </div>
-
-                <button type="submit" class="w-full py-3 rounded-lg bg-[#6B2C3E] text-white font-bold hover:bg-[#5a2433] transition mt-6">
+                <button type="submit" class="w-full py-3 rounded-lg text-white font-bold hover:shadow-lg transition mt-6" style="background-color: #111827;">
                     Sign In
                 </button>
             </form>
 
             <div class="mt-6 pt-6 border-t border-gray-200 text-center">
-                <p class="text-sm text-gray-600">Don't have an account? 
-                    <button type="button" onclick="toggleAuthMode()" class="text-[#6B2C3E] font-bold hover:underline">Create Account</button>
+                <p class="text-sm" style="color: #6b7280;">Don't have an account? 
+                    <button type="button" onclick="toggleAuthMode()" class="font-bold hover:underline" style="color: #111827;">Create Account</button>
                 </p>
             </div>
         </div>
 
         <!-- Create Account Tab -->
-        <div id="signup-container" class="bg-white rounded-2xl shadow-lg p-8 border border-gray-200 hidden">
+        <div id="signup-container" class="bg-white rounded-2xl shadow-lg p-8 border border-gray-200 hidden" style="background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(15, 23, 42, 0.08);">
             <div class="mb-8 text-center">
-                <h1 class="text-3xl font-bold text-[#6B2C3E]">Q-Shield</h1>
-                <p class="text-sm text-gray-600 mt-2">Create Your Account</p>
+                <h1 class="text-3xl font-bold" style="color: #111827;">Q-Shield</h1>
+                <p class="text-sm mt-2" style="color: #6b7280;">Create Your Account</p>
             </div>
 
             {% if signup_error %}
@@ -76,31 +87,31 @@
 
             <form id="signup-form" method="post" action="/api/auth/register" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-semibold text-gray-800 mb-2">FULL NAME</label>
+                    <label class="block text-sm font-semibold mb-2" style="color: #111827;">FULL NAME</label>
                     <input name="full_name" type="text" placeholder="Your full name" required 
-                        class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6B2C3E] focus:border-transparent transition" />
+                        class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:border-transparent transition" style="focus:ring-color: rgba(17, 24, 39, 0.1);" />
                 </div>
 
                 <div>
-                    <label class="block text-sm font-semibold text-gray-800 mb-2">EMAIL ADDRESS</label>
+                    <label class="block text-sm font-semibold mb-2" style="color: #111827;">EMAIL ADDRESS</label>
                     <input name="email" type="email" placeholder="email@company.com" required 
-                        class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6B2C3E] focus:border-transparent transition" />
+                        class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:border-transparent transition" style="focus:ring-color: rgba(17, 24, 39, 0.1);" />
                 </div>
 
                 <div>
-                    <label class="block text-sm font-semibold text-gray-800 mb-2">PASSWORD</label>
+                    <label class="block text-sm font-semibold mb-2" style="color: #111827;">PASSWORD</label>
                     <div class="relative">
                         <input id="signup-password" name="password" type="password" placeholder="Minimum 8 characters" required 
-                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6B2C3E] focus:border-transparent transition" />
-                        <button type="button" onclick="togglePassword('signup-password')" class="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
-                            <span class="text-sm">Show</span>
+                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:border-transparent transition" style="focus:ring-color: rgba(17, 24, 39, 0.1);" />
+                        <button type="button" onclick="togglePassword('signup-password')" class="absolute right-3 top-3 transition" style="color: #6b7280;">
+                            <span class="text-sm hover:font-semibold">Show</span>
                         </button>
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-semibold text-gray-800 mb-2">ROLE (FR2 - RBAC)</label>
-                    <select name="role" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6B2C3E] focus:border-transparent transition bg-white">
+                    <label class="block text-sm font-semibold mb-2" style="color: #111827;">ROLE (FR2 - RBAC)</label>
+                    <select name="role" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:border-transparent transition bg-white" style="focus:ring-color: rgba(17, 24, 39, 0.1);">
                         <option value="analyst">SOC Analyst</option>
                         <option value="viewer">Viewer</option>
                         <option value="cyber_lead">Cyber Lead</option>
@@ -109,20 +120,20 @@
                     </select>
                 </div>
 
-                <button type="submit" class="w-full py-3 rounded-lg bg-[#6B2C3E] text-white font-bold hover:bg-[#5a2433] transition mt-6">
+                <button type="submit" class="w-full py-3 rounded-lg text-white font-bold hover:shadow-lg transition mt-6" style="background-color: #111827;">
                     Create Account
                 </button>
             </form>
 
-            <div class="mt-4 p-4 rounded-lg bg-yellow-50 border border-yellow-200">
-                <p class="text-sm text-yellow-800">
+            <div class="mt-4 p-4 rounded-lg bg-blue-50 border border-blue-200">
+                <p class="text-sm" style="color: #1e40af;">
                     ✓ Accounts are verified by admin before first login.
                 </p>
             </div>
 
             <div class="mt-6 pt-6 border-t border-gray-200 text-center">
-                <p class="text-sm text-gray-600">Already have an account? 
-                    <button type="button" onclick="toggleAuthMode()" class="text-[#6B2C3E] font-bold hover:underline">Sign In</button>
+                <p class="text-sm" style="color: #6b7280;">Already have an account? 
+                    <button type="button" onclick="toggleAuthMode()" class="font-bold hover:underline" style="color: #111827;">Sign In</button>
                 </p>
             </div>
         </div>
