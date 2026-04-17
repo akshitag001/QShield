@@ -1096,7 +1096,7 @@ async def login_submit(
                 "login.html",
                 {
                     "request": request,
-                    "error": "Your account has been disabled. Contact an administrator.",
+                    "error": "Your account is pending admin verification. Please wait or contact an administrator.",
                 },
             )
         
@@ -1207,6 +1207,76 @@ async def firebase_login(request: Request, db: Session = Depends(get_db)):
         logger.error(f"Firebase login error: {e}")
         logger.exception(f"Firebase login full traceback:")
         raise HTTPException(status_code=500, detail=f"Firebase authentication error: {str(e)}")
+
+
+@app.post("/api/auth/register")
+async def register_user(request: Request, db: Session = Depends(get_db)):
+    """Self-registration: Create a new user account (requires admin verification before first login)"""
+    try:
+        body = await request.json()
+        full_name = body.get("full_name", "").strip()
+        email = body.get("email", "").strip()
+        password = body.get("password", "").strip()
+        role = body.get("role", "analyst").strip().lower()
+        
+        # Validate inputs
+        if not full_name or not email or not password:
+            raise HTTPException(status_code=400, detail="Full name, email, and password required")
+        
+        if len(password) < 8:
+            raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+        
+        if "@" not in email:
+            raise HTTPException(status_code=400, detail="Valid email address required")
+        
+        # Validate role
+        valid_roles = ["viewer", "analyst", "cyber_lead", "it_lead", "security_head"]
+        if role not in valid_roles:
+            raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}")
+        
+        # Check if user already exists (by email or username)
+        existing_email = db.query(User).filter(User.username == email).first()
+        if existing_email:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        # Create new user (inactive until admin verifies)
+        new_user = User(
+            username=email,  # Use email as username
+            password_hash=_hash_password(password),
+            role=role,
+            is_active=False  # Require admin verification before first login
+        )
+        
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        
+        # Log the registration request
+        _log_event(
+            db, None, "user_registration_requested",
+            resource_type="user",
+            resource_id=str(new_user.id),
+            target=email,
+            details={
+                "full_name": full_name,
+                "role": role,
+                "status": "pending_admin_verification"
+            }
+        )
+        
+        return {
+            "success": True,
+            "message": "Account created successfully! Awaiting admin verification.",
+            "user_id": new_user.id,
+            "email": email,
+            "status": "pending_admin_verification"
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Registration error: {e}")
+        raise HTTPException(status_code=500, detail=f"Registration error: {str(e)}")
 
 
 @app.post("/api/auth/firebase-logout")

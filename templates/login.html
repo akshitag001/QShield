@@ -6,109 +6,185 @@
     <title>Q-Shield | Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-    <div class="w-full max-w-md bg-white border border-gray-200 rounded-2xl shadow-sm p-8">
-        <div class="mb-6 text-center">
-            <h1 class="text-2xl font-semibold text-gray-900">Q-Shield Login</h1>
-            <p class="text-sm text-gray-500 mt-1">Sign in to access scanner and scan history</p>
-        </div>
-
-        {% if error %}
-        <div class="mb-4 p-3 rounded-xl bg-red-50 text-red-700 border border-red-200 text-sm">
-            {{ error }}
-        </div>
-        {% endif %}
-
-        <!-- Google Sign-In Button -->
-        <div id="firebase-signin-container" class="mb-6"></div>
-
-        <!-- Divider -->
-        <div class="auth-divider mb-6">
-            <span>or</span>
-        </div>
-
-        <!-- Traditional Login Form -->
-        <form method="post" action="/login" class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1" for="username">Username</label>
-                <input id="username" name="username" type="text" required class="w-full px-3 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300" />
+<body class="min-h-screen bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center px-4 py-8">
+    <div class="w-full max-w-md">
+        <!-- Sign In Tab -->
+        <div id="signin-container" class="bg-white rounded-2xl shadow-lg p-8 border border-gray-200">
+            <div class="mb-8 text-center">
+                <h1 class="text-3xl font-bold text-[#6B2C3E]">Q-Shield</h1>
+                <p class="text-sm text-gray-600 mt-2">Cryptographic Inventory Scanner</p>
             </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1" for="password">Password</label>
-                <input id="password" name="password" type="password" required class="w-full px-3 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300" />
+
+            {% if error %}
+            <div class="mb-4 p-3 rounded-xl bg-red-50 text-red-700 border border-red-200 text-sm">
+                {{ error }}
             </div>
-            <button type="submit" class="w-full py-2.5 rounded-xl bg-gray-900 text-white font-medium hover:bg-gray-800 transition">
-                Sign In
-            </button>
-        </form>
+            {% endif %}
+
+            <form method="post" action="/login" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-800 mb-2" for="username">EMAIL ADDRESS</label>
+                    <input id="username" name="username" type="text" placeholder="your.email@company.com" required 
+                        class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6B2C3E] focus:border-transparent transition" />
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-gray-800 mb-2" for="password">PASSWORD</label>
+                    <div class="relative">
+                        <input id="signin-password" name="password" type="password" placeholder="Minimum 8 characters" required 
+                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6B2C3E] focus:border-transparent transition" />
+                        <button type="button" onclick="togglePassword('signin-password')" class="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
+                            <span class="text-sm">Show</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <a href="#" class="text-sm text-[#6B2C3E] hover:underline font-medium">Magic Link / Forgot Password?</a>
+                </div>
+
+                <button type="submit" class="w-full py-3 rounded-lg bg-[#6B2C3E] text-white font-bold hover:bg-[#5a2433] transition mt-6">
+                    Sign In
+                </button>
+            </form>
+
+            <div class="mt-6 pt-6 border-t border-gray-200 text-center">
+                <p class="text-sm text-gray-600">Don't have an account? 
+                    <button type="button" onclick="toggleAuthMode()" class="text-[#6B2C3E] font-bold hover:underline">Create Account</button>
+                </p>
+            </div>
+        </div>
+
+        <!-- Create Account Tab -->
+        <div id="signup-container" class="bg-white rounded-2xl shadow-lg p-8 border border-gray-200 hidden">
+            <div class="mb-8 text-center">
+                <h1 class="text-3xl font-bold text-[#6B2C3E]">Q-Shield</h1>
+                <p class="text-sm text-gray-600 mt-2">Create Your Account</p>
+            </div>
+
+            {% if signup_error %}
+            <div class="mb-4 p-3 rounded-xl bg-red-50 text-red-700 border border-red-200 text-sm">
+                {{ signup_error }}
+            </div>
+            {% endif %}
+
+            {% if signup_success %}
+            <div class="mb-4 p-3 rounded-xl bg-green-50 text-green-700 border border-green-200 text-sm">
+                {{ signup_success }}
+            </div>
+            {% endif %}
+
+            <form id="signup-form" method="post" action="/api/auth/register" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-800 mb-2">FULL NAME</label>
+                    <input name="full_name" type="text" placeholder="Your full name" required 
+                        class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6B2C3E] focus:border-transparent transition" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-800 mb-2">EMAIL ADDRESS</label>
+                    <input name="email" type="email" placeholder="email@company.com" required 
+                        class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6B2C3E] focus:border-transparent transition" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-800 mb-2">PASSWORD</label>
+                    <div class="relative">
+                        <input id="signup-password" name="password" type="password" placeholder="Minimum 8 characters" required 
+                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6B2C3E] focus:border-transparent transition" />
+                        <button type="button" onclick="togglePassword('signup-password')" class="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
+                            <span class="text-sm">Show</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-800 mb-2">ROLE (FR2 - RBAC)</label>
+                    <select name="role" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#6B2C3E] focus:border-transparent transition bg-white">
+                        <option value="analyst">SOC Analyst</option>
+                        <option value="viewer">Viewer</option>
+                        <option value="cyber_lead">Cyber Lead</option>
+                        <option value="it_lead">IT Lead</option>
+                        <option value="security_head">Security Head</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="w-full py-3 rounded-lg bg-[#6B2C3E] text-white font-bold hover:bg-[#5a2433] transition mt-6">
+                    Create Account
+                </button>
+            </form>
+
+            <div class="mt-4 p-4 rounded-lg bg-yellow-50 border border-yellow-200">
+                <p class="text-sm text-yellow-800">
+                    ✓ Accounts are verified by admin before first login.
+                </p>
+            </div>
+
+            <div class="mt-6 pt-6 border-t border-gray-200 text-center">
+                <p class="text-sm text-gray-600">Already have an account? 
+                    <button type="button" onclick="toggleAuthMode()" class="text-[#6B2C3E] font-bold hover:underline">Sign In</button>
+                </p>
+            </div>
+        </div>
     </div>
 
-    <!-- Firebase Authentication Styles and Scripts -->
+    <!-- Styles and Scripts -->
     <style>
-        .google-signin-button {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            padding: 12px 24px;
-            border: 1px solid #dadce0;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 500;
-            color: #3c4043;
-            background-color: #fff;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            width: 100%;
-        }
-
-        .google-signin-button:hover {
-            border-color: #4285f4;
-            background-color: #f8f9fa;
-            box-shadow: 0 2px 8px rgba(66, 133, 244, 0.2);
-        }
-
-        .google-signin-button:active {
-            background-color: #f1f3f4;
-        }
-
-        .google-signin-button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .google-icon {
-            width: 20px;
-            height: 20px;
-        }
-
-        .auth-divider {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            color: #999;
-        }
-
-        .auth-divider span {
-            white-space: nowrap;
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .auth-divider::before,
-        .auth-divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background-color: #e0e0e0;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
         }
     </style>
 
-    <script type="module">
-        import { attachGoogleSignInButton, getGoogleSignInStyles } from "/static/firebase_auth/ui.js";
-        
-        // Attach Google Sign-In button
-        attachGoogleSignInButton('firebase-signin-container');
+    <script>
+        function toggleAuthMode() {
+            const signinContainer = document.getElementById('signin-container');
+            const signupContainer = document.getElementById('signup-container');
+            
+            signinContainer.classList.toggle('hidden');
+            signupContainer.classList.toggle('hidden');
+        }
+
+        function togglePassword(fieldId) {
+            const field = document.getElementById(fieldId);
+            const isPassword = field.type === 'password';
+            field.type = isPassword ? 'text' : 'password';
+        }
+
+        // Handle signup form submission
+        document.getElementById('signup-form')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const data = {
+                full_name: formData.get('full_name'),
+                email: formData.get('email'),
+                password: formData.get('password'),
+                role: formData.get('role')
+            };
+
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    // Show success message
+                    alert('Account created successfully! Please wait for admin verification before logging in.');
+                    document.getElementById('signup-form').reset();
+                    toggleAuthMode(); // Switch back to sign in
+                } else {
+                    alert(result.detail || 'Error creating account');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        });
     </script>
 </body>
 </html>
