@@ -113,6 +113,52 @@ def _analyze_api_security(endpoint_url: str, timeout: int = 5) -> Dict[str, Any]
     return security_analysis
 
 
+def _extract_openapi_paths(payload: bytes, base_url: str, max_paths: int = 50) -> List[Dict[str, Any]]:
+    """Extract endpoint paths from an OpenAPI/Swagger JSON payload."""
+    if not payload:
+        return []
+
+    try:
+        data = json.loads(payload.decode("utf-8", errors="ignore"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return []
+
+    if not isinstance(data, dict) or "paths" not in data:
+        return []
+
+    paths = data.get("paths") or {}
+    if not isinstance(paths, dict):
+        return []
+
+    endpoints = []
+    base = base_url.rstrip("/")
+    for path in list(paths.keys())[:max_paths]:
+        if not isinstance(path, str) or not path:
+            continue
+        if path.startswith("/"):
+            url = f"{base}{path}"
+        else:
+            url = f"{base}/{path}"
+
+        endpoints.append(
+            {
+                "path": path,
+                "url": url,
+                "status": "spec",
+                "content_type": "application/json",
+                "is_api": True,
+                "security_analysis": {
+                    "cors_enabled": None,
+                    "requires_auth": None,
+                    "rate_limit_headers": None,
+                },
+                "source": "openapi",
+            }
+        )
+
+    return endpoints
+
+
 def _detect_api_endpoints(base_url: str, timeout: int = 5) -> List[Dict[str, Any]]:
     """
     Detect common API patterns by probing well-known paths and analyzing security.
@@ -148,13 +194,19 @@ def _detect_api_endpoints(base_url: str, timeout: int = 5) -> List[Dict[str, Any
             req.add_header("User-Agent", "Q-Shield-Scanner/1.0")
             
             # Handle HTTP errors gracefully
+            body = b""
             try:
                 with urllib.request.urlopen(req, timeout=timeout, context=ctx) as response:
                     status = response.status
                     content_type = response.headers.get("Content-Type", "")
+                    body = response.read(200000)
             except urllib.error.HTTPError as e:
                 status = e.code
                 content_type = e.headers.get("Content-Type", "") if hasattr(e, 'headers') else ""
+                try:
+                    body = e.read(200000)
+                except Exception:
+                    body = b""
             except (urllib.error.URLError, socket.timeout, ssl.SSLError):
                 continue
                 
@@ -175,10 +227,24 @@ def _detect_api_endpoints(base_url: str, timeout: int = 5) -> List[Dict[str, Any
                     endpoint_data["security_analysis"] = _analyze_api_security(url, timeout)
                 
                 discovered.append(endpoint_data)
+
+                # Extract paths from OpenAPI/Swagger payloads when available
+                if is_api and ("openapi" in content_type.lower() or path in ("/swagger.json", "/openapi.json")):
+                    discovered.extend(_extract_openapi_paths(body, base_url))
         except Exception:
             pass
     
-    return discovered
+    # De-duplicate endpoints by URL or path
+    seen = set()
+    unique = []
+    for item in discovered:
+        key = (item.get("url") or item.get("path") or "").lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        unique.append(item)
+
+    return unique
 
 
 def _extract_headers_crypto_info(base_url: str, timeout: int = 5) -> Dict[str, Any]:

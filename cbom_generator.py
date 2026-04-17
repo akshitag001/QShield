@@ -119,6 +119,8 @@ class EndpointInventory:
     pqc_ready: bool = False  # Whether endpoint supports PQC
     qars_data: Dict[str, Any] = field(default_factory=dict)
     pqc_certificate: Dict[str, Any] = field(default_factory=dict)
+    perimeter_checks: Dict[str, Any] = field(default_factory=dict)
+    perimeter_findings: List[Dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -551,6 +553,10 @@ def scan_result_to_cbom(scan_result: Dict[str, Any], endpoint_label: Optional[st
         inventory.assets.append(pqc_kx_asset)
     
     # VPN and SSH assets
+    perimeter_checks = scan_result.get("perimeter_checks") or {}
+    inventory.perimeter_checks = perimeter_checks
+    perimeter_findings = []
+
     vpn = scan_result.get("vpn_gateway")
     if vpn and vpn.get("detected"):
         vpn_asset = CryptoAsset(
@@ -564,6 +570,11 @@ def scan_result_to_cbom(scan_result: Dict[str, Any], endpoint_label: Optional[st
             notes=["Exposed VPN Gateway Detected"]
         )
         inventory.assets.append(vpn_asset)
+        perimeter_findings.append({
+            "service": "vpn",
+            "type": vpn.get("vpn_type"),
+            "endpoint": vpn.get("endpoint"),
+        })
         
     ssh = scan_result.get("ssh_endpoint")
     if ssh and ssh.get("detected"):
@@ -582,6 +593,13 @@ def scan_result_to_cbom(scan_result: Dict[str, Any], endpoint_label: Optional[st
             notes=["Exposed SSH Service Detected"]
         )
         inventory.assets.append(ssh_asset)
+        perimeter_findings.append({
+            "service": "ssh",
+            "banner": ssh.get("banner"),
+            "port": ssh.get("port"),
+        })
+
+    inventory.perimeter_findings = perimeter_findings
 
     # API endpoint discovery assets (public sites, passive + light active)
     api_endpoints = scan_result.get("api_endpoints", [])

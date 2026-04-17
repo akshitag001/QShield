@@ -237,11 +237,16 @@ class ThirdPartyVendor(Base):
 class ScanRequest(BaseModel):
     target: str = Field(..., description="Target URL, hostname, or IP:PORT")
     timeout: int = Field(default=10, ge=1, le=60, description="Timeout in seconds")
+    perimeter_ports: Optional[List[int]] = Field(
+        default=None,
+        description="Optional comma-separated list of perimeter ports (VPN/SSH) to probe",
+    )
 
 
 class MultiScanRequest(BaseModel):
     targets: List[str] = Field(..., description="List of targets to scan")
     timeout: int = Field(default=10, ge=1, le=60)
+    perimeter_ports: Optional[List[int]] = Field(default=None, description="Optional perimeter ports to probe")
 
 
 class SubdomainScanRequest(BaseModel):
@@ -249,6 +254,7 @@ class SubdomainScanRequest(BaseModel):
     subdomains: List[str] = Field(default_factory=list, description="Selected subdomains to scan")
     timeout: int = Field(default=10, ge=1, le=60)
     include_parent: bool = Field(default=True, description="Include parent target in combined CBOM")
+    perimeter_ports: Optional[List[int]] = Field(default=None, description="Optional perimeter ports to probe")
 
 
 class ScanResponse(BaseModel):
@@ -290,6 +296,7 @@ class VendorToggleRequest(BaseModel):
 class VendorScanRequest(BaseModel):
     vendor_ids: List[str] = Field(default_factory=list)
     timeout: int = Field(default=12, ge=1, le=60)
+    perimeter_ports: Optional[List[int]] = Field(default=None, description="Optional perimeter ports to probe")
 
 
 def _initialize_database() -> None:
@@ -765,6 +772,57 @@ def _build_base_url(target: str) -> Optional[str]:
     return f"{scheme}://{host}"
 
 
+DEFAULT_VPN_PORTS = [80, 443, 8443, 10443, 1443, 9443]
+DEFAULT_SSH_PORTS = [22, 2222, 2200]
+DEFAULT_PERIMETER_PORTS = DEFAULT_VPN_PORTS + DEFAULT_SSH_PORTS
+
+
+def _normalize_ports(ports: Optional[List[int]]) -> List[int]:
+    if not ports:
+        return []
+    normalized: List[int] = []
+    for port in ports:
+        try:
+            value = int(port)
+        except (TypeError, ValueError):
+            continue
+        if 1 <= value <= 65535 and value not in normalized:
+            normalized.append(value)
+    return normalized
+
+
+def _get_perimeter_ports(ports: Optional[List[int]]) -> List[int]:
+    normalized = _normalize_ports(ports)
+    return normalized if normalized else list(DEFAULT_PERIMETER_PORTS)
+
+
+def _split_perimeter_ports(ports: List[int]) -> tuple[List[int], List[int]]:
+    if not ports:
+        return list(DEFAULT_VPN_PORTS), list(DEFAULT_SSH_PORTS)
+    ssh_candidates = {22, 2222, 2200, 22222}
+    ssh_ports = [p for p in ports if p in ssh_candidates]
+    vpn_ports = [p for p in ports if p not in ssh_candidates]
+    if not ssh_ports:
+        ssh_ports = list(DEFAULT_SSH_PORTS)
+    if not vpn_ports:
+        vpn_ports = list(DEFAULT_VPN_PORTS)
+    return vpn_ports, ssh_ports
+
+
+def _parse_ports_param(value: Optional[str]) -> Optional[List[int]]:
+    if not value:
+        return None
+    ports = []
+    for part in value.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if not part.isdigit():
+            continue
+        ports.append(int(part))
+    return ports or None
+
+
 def _attach_api_endpoints(result: Dict[str, Any], target: str, timeout: int) -> None:
     if not result or result.get("api_endpoints"):
         return
@@ -790,7 +848,12 @@ def _get_perimeter_target(result: Dict[str, Any], target: str) -> tuple[Optional
     return host, port
 
 
-async def _attach_perimeter_async(result: Dict[str, Any], target: str, timeout: int) -> None:
+async def _attach_perimeter_async(
+    result: Dict[str, Any],
+    target: str,
+    timeout: int,
+    perimeter_ports: Optional[List[int]] = None,
+) -> None:
     if not result:
         return
     if result.get("vpn_gateway") or result.get("ssh_endpoint"):
@@ -800,26 +863,40 @@ async def _attach_perimeter_async(result: Dict[str, Any], target: str, timeout: 
         return
 
     perimeter_timeout = max(3, min(timeout, 8))
+    ports = _get_perimeter_ports(perimeter_ports)
+    vpn_ports, ssh_ports = _split_perimeter_ports(ports)
     try:
         vpn_res, ssh_res = await asyncio.gather(
-            scan_vpn(host, port, perimeter_timeout),
-            scan_ssh(host, 22, perimeter_timeout),
+            scan_vpn(host, vpn_ports, perimeter_timeout),
+            scan_ssh(host, ssh_ports, perimeter_timeout),
         )
         if vpn_res and vpn_res.get("detected"):
             result["vpn_gateway"] = vpn_res
         if ssh_res and ssh_res.get("detected"):
             result["ssh_endpoint"] = ssh_res
+        result["perimeter_checks"] = {
+            "vpn_ports": vpn_ports,
+            "ssh_ports": ssh_ports,
+            "vpn_checked_ports": (vpn_res or {}).get("checked_ports", vpn_ports),
+            "ssh_checked_ports": (ssh_res or {}).get("checked_ports", ssh_ports),
+            "checked_at": datetime.now(timezone.utc).isoformat(),
+        }
     except Exception as exc:
         logger.debug(f"Perimeter discovery failed for {host}: {exc}")
 
 
-def _attach_perimeter_sync(result: Dict[str, Any], target: str, timeout: int) -> None:
+def _attach_perimeter_sync(
+    result: Dict[str, Any],
+    target: str,
+    timeout: int,
+    perimeter_ports: Optional[List[int]] = None,
+) -> None:
     try:
-        asyncio.run(_attach_perimeter_async(result, target, timeout))
+        asyncio.run(_attach_perimeter_async(result, target, timeout, perimeter_ports))
     except RuntimeError:
         loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(_attach_perimeter_async(result, target, timeout))
+            loop.run_until_complete(_attach_perimeter_async(result, target, timeout, perimeter_ports))
         finally:
             loop.close()
 
@@ -1448,7 +1525,7 @@ async def scan_target_public(scan_request: ScanRequest, request: Request):
     try:
         result = scan_tls(normalized_target, timeout=scan_request.timeout)
         _attach_api_endpoints(result, normalized_target, scan_request.timeout)
-        await _attach_perimeter_async(result, normalized_target, scan_request.timeout)
+        await _attach_perimeter_async(result, normalized_target, scan_request.timeout, scan_request.perimeter_ports)
         cbom = generate_cbom([result])
         cbom_dict = cbom.to_dict()
         vulnerabilities = _extract_quantum_vulnerabilities(cbom_dict, normalized_target, "public_scan")
@@ -1481,7 +1558,7 @@ async def scan_target(scan_request: ScanRequest, request: Request, db: Session =
     try:
         result = scan_tls(normalized_target, timeout=scan_request.timeout)
         _attach_api_endpoints(result, normalized_target, scan_request.timeout)
-        await _attach_perimeter_async(result, normalized_target, scan_request.timeout)
+        await _attach_perimeter_async(result, normalized_target, scan_request.timeout, scan_request.perimeter_ports)
         cbom = generate_cbom([result])
         cbom_dict = cbom.to_dict()
         vulnerabilities = _extract_quantum_vulnerabilities(cbom_dict, normalized_target, scan_id)
@@ -1555,6 +1632,7 @@ async def scan_target(scan_request: ScanRequest, request: Request, db: Session =
 async def scan_target_stream(
     target: str,
     timeout: int = 15,
+    perimeter_ports: Optional[str] = None,
     request: Request = None,
     db: Session = Depends(get_db),
 ):
@@ -1589,13 +1667,15 @@ async def scan_target_stream(
             },
         )
 
+    parsed_perimeter_ports = _parse_ports_param(perimeter_ports)
+
     def _worker() -> None:
         local_db = SessionLocal()
         try:
             worker_user = local_db.get(User, user.id)
             result = scan_tls(normalized_target, timeout=timeout, progress_callback=_progress_callback)
             _attach_api_endpoints(result, normalized_target, timeout)
-            _attach_perimeter_sync(result, normalized_target, timeout)
+            _attach_perimeter_sync(result, normalized_target, timeout, parsed_perimeter_ports)
             cbom = generate_cbom([result])
             cbom_dict = cbom.to_dict()
             vulnerabilities = _extract_quantum_vulnerabilities(cbom_dict, normalized_target, scan_id)
@@ -1711,7 +1791,7 @@ async def scan_multiple_targets(scan_request: MultiScanRequest, request: Request
             normalized_target = _validate_scan_target_or_raise(target)
             result = scan_tls(normalized_target, timeout=scan_request.timeout)
             _attach_api_endpoints(result, normalized_target, scan_request.timeout)
-            await _attach_perimeter_async(result, normalized_target, scan_request.timeout)
+            await _attach_perimeter_async(result, normalized_target, scan_request.timeout, scan_request.perimeter_ports)
             results.append(result)
         except Exception as e:
             errors.append({"target": target, "error": _friendly_scan_error_detail(e)})
@@ -1767,7 +1847,7 @@ async def scan_subdomains(scan_request: SubdomainScanRequest, request: Request, 
             normalized_target = _validate_scan_target_or_raise(target)
             result = scan_tls(normalized_target, timeout=scan_request.timeout)
             _attach_api_endpoints(result, normalized_target, scan_request.timeout)
-            await _attach_perimeter_async(result, normalized_target, scan_request.timeout)
+            await _attach_perimeter_async(result, normalized_target, scan_request.timeout, scan_request.perimeter_ports)
             results.append(result)
         except Exception as exc:
             errors.append({"target": target, "error": _friendly_scan_error_detail(exc)})
@@ -2590,7 +2670,7 @@ async def scan_vendors(payload: VendorScanRequest, request: Request, db: Session
         try:
             result = scan_tls(target, timeout=timeout)
             _attach_api_endpoints(result, target, timeout)
-            await _attach_perimeter_async(result, target, timeout)
+            await _attach_perimeter_async(result, target, timeout, payload.perimeter_ports)
             cbom = generate_cbom([result])
             cbom_dict = cbom.to_dict()
             vulnerabilities = _extract_quantum_vulnerabilities(cbom_dict, target, scan_id)

@@ -5,6 +5,7 @@ NIST SP 1800-38B Compliance Check
 import paramiko
 import asyncio
 import logging
+from typing import List, Optional, Union
 
 logger = logging.getLogger("qshield.ssh")
 
@@ -36,6 +37,39 @@ def _probe_ssh_sync(host: str, port: int = 22, timeout: int = 5) -> dict:
         
     return ssh_info
 
-async def scan_ssh(host: str, port: int = 22, timeout: int = 5) -> dict:
+def _normalize_ports(ports: Union[int, List[int], None]) -> List[int]:
+    if ports is None:
+        return [22]
+    if isinstance(ports, int):
+        ports = [ports]
+    normalized = []
+    for port in ports:
+        try:
+            value = int(port)
+        except (TypeError, ValueError):
+            continue
+        if 1 <= value <= 65535 and value not in normalized:
+            normalized.append(value)
+    return normalized or [22]
+
+
+async def scan_ssh(host: str, ports: Union[int, List[int]] = 22, timeout: int = 5) -> dict:
     """Async wrapper for SSH probe"""
-    return await asyncio.to_thread(_probe_ssh_sync, host, port, timeout)
+    port_list = _normalize_ports(ports)
+    checked = []
+
+    for port in port_list:
+        checked.append(port)
+        ssh_info = await asyncio.to_thread(_probe_ssh_sync, host, port, timeout)
+        if ssh_info.get("detected"):
+            ssh_info["port"] = port
+            ssh_info["checked_ports"] = checked
+            return ssh_info
+
+    return {
+        "detected": False,
+        "banner": None,
+        "kex_algorithms": [],
+        "ciphers": [],
+        "checked_ports": checked
+    }
