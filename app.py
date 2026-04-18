@@ -1161,6 +1161,38 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
     )
 
 
+@app.get("/asset-inventory", response_class=HTMLResponse)
+async def asset_inventory_page(request: Request, db: Session = Depends(get_db)):
+    user = _get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return _render_template(
+        request,
+        "asset_inventory.html",
+        {
+            "request": request,
+            "current_user": {"username": user.username, "role": user.role},
+        },
+    )
+
+
+@app.get("/history", response_class=HTMLResponse)
+async def history_page(request: Request, db: Session = Depends(get_db)):
+    user = _get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+
+    return _render_template(
+        request,
+        "history.html",
+        {
+            "request": request,
+            "current_user": {"username": user.username, "role": user.role},
+        },
+    )
+
+
 @app.get("/learn", response_class=HTMLResponse)
 async def learn(request: Request, db: Session = Depends(get_db)):
     """Quantum security education page"""

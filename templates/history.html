@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Q-Shield | History</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --q-bg-a: #f8f8fa;
+            --q-bg-b: #f2f3f7;
+            --q-panel: rgba(255, 255, 255, 0.9);
+            --q-border: rgba(15, 23, 42, 0.08);
+            --q-text: #12131a;
+        }
+
+        body {
+            background: linear-gradient(180deg, var(--q-bg-a) 0%, var(--q-bg-b) 100%);
+            min-height: 100vh;
+            color: var(--q-text);
+            position: relative;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(500px 300px at 90% 20%, rgba(244, 114, 182, 0.12), transparent 70%),
+                radial-gradient(500px 300px at 8% 0%, rgba(148, 163, 184, 0.12), transparent 70%);
+            opacity: 0.65;
+        }
+
+        .glass-card {
+            background: var(--q-panel);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--q-border);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .card-lift {
+            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+        }
+
+        .card-lift:hover {
+            transform: translateY(-2px);
+            border-color: rgba(17, 24, 39, 0.14);
+            box-shadow: 0 14px 28px rgba(15, 23, 42, 0.09);
+        }
+
+        .btn-secondary {
+            background: #ffffff;
+            border: 1px solid rgba(17, 24, 39, 0.14);
+            transition: all 0.28s ease;
+        }
+
+        .btn-secondary:hover {
+            border-color: rgba(17, 24, 39, 0.28);
+        }
+
+        details.nav-dropdown > summary {
+            list-style: none;
+        }
+
+        details.nav-dropdown > summary::-webkit-details-marker {
+            display: none;
+        }
+    </style>
+</head>
+<body class="font-sans text-gray-900">
+    <nav class="sticky top-0 z-30 backdrop-blur-sm bg-white/70 border-b border-gray-200/70">
+        <div class="max-w-7xl mx-auto px-6 py-4">
+            <div class="glass-card rounded-2xl px-5 py-3 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 bg-gray-900 rounded-xl flex items-center justify-center shadow-sm">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                    </div>
+                    <span class="text-xl font-semibold text-gray-900">Q-Shield</span>
+                </div>
+                <div class="hidden md:flex items-center space-x-8 text-sm font-medium text-gray-500">
+                    <details class="nav-dropdown relative">
+                        <summary class="cursor-pointer hover:text-gray-900 transition">Scanner ▾</summary>
+                        <div class="absolute top-full left-0 mt-2 w-44 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-50">
+                            <a href="/#scanner" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Main Scanner</a>
+                            <a href="/vendors" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Vendor Scanner</a>
+                        </div>
+                    </details>
+                    <a href="/asset-inventory" class="hover:text-gray-900 transition">Asset Inventory</a>
+                    <a href="/history" class="text-gray-900">History</a>
+                    <a href="/scheduled-reporting" class="hover:text-gray-900 transition">Scheduled Reports</a>
+                    <a href="/learn" class="hover:text-gray-900 transition">Learn</a>
+                    {% if current_user.role in ['admin', 'cyber_lead', 'it_lead', 'security_head'] %}
+                    <a href="/logs" class="hover:text-gray-900 transition">Logs</a>
+                    {% endif %}
+                    {% if current_user.role == 'admin' %}
+                    <a href="/user_management" class="hover:text-gray-900 transition">Users</a>
+                    {% endif %}
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="hidden sm:inline text-xs text-gray-500 px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200">
+                        {{ current_user.username }} ({{ current_user.role }})
+                    </span>
+                    <a href="/" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Dashboard</a>
+                    <a href="/logout" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <section class="relative z-10 py-12 pb-24">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="mb-8 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-3xl font-semibold text-gray-900 mb-2">Scan History</h2>
+                    <p class="text-gray-600">Trend your quantum exposure across completed scans.</p>
+                </div>
+                <button onclick="refreshHistory()" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Refresh Data</button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div class="glass-card rounded-2xl p-6">
+                    <div class="text-sm text-gray-600 mb-2">Total Scans</div>
+                    <div id="totalScans" class="text-3xl font-bold text-gray-900">0</div>
+                </div>
+                <div class="glass-card rounded-2xl p-6">
+                    <div class="text-sm text-gray-600 mb-2">Avg Risk Score</div>
+                    <div id="avgRiskScore" class="text-3xl font-bold text-gray-900">0</div>
+                </div>
+                <div class="glass-card rounded-2xl p-6">
+                    <div class="text-sm text-gray-600 mb-2">Total Assets</div>
+                    <div id="totalAssets" class="text-3xl font-bold text-gray-900">0</div>
+                </div>
+                <div class="glass-card rounded-2xl p-6">
+                    <div class="text-sm text-gray-600 mb-2">Critical + High</div>
+                    <div id="criticalHigh" class="text-3xl font-bold text-red-600">0</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div class="glass-card card-lift rounded-3xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900">Risk Score Trend</h3>
+                            <p class="text-sm text-gray-500">Crypto agility score over time</p>
+                        </div>
+                        <span id="riskDelta" class="text-sm text-gray-500">—</span>
+                    </div>
+                    <div class="h-60">
+                        <canvas id="riskTrendChart"></canvas>
+                    </div>
+                </div>
+                <div class="glass-card card-lift rounded-3xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900">Assets Discovered</h3>
+                            <p class="text-sm text-gray-500">Per completed scan</p>
+                        </div>
+                    </div>
+                    <div class="h-60">
+                        <canvas id="assetsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card card-lift rounded-3xl p-6 mb-8">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Critical & High Findings per Scan</h3>
+                        <p class="text-sm text-gray-500">Stacked risk breakdown across scan history</p>
+                    </div>
+                </div>
+                <div class="h-64">
+                    <canvas id="findingsChart"></canvas>
+                </div>
+            </div>
+
+            <div class="glass-card card-lift rounded-3xl p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Recent Scans</h3>
+                    <button onclick="refreshHistory()" class="text-sm text-gray-600 hover:text-gray-900 font-medium transition">Refresh</button>
+                </div>
+                <div id="scanHistory" class="space-y-3">
+                    <p class="text-gray-400 text-center py-8">Loading scan history...</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        const currentUserRole = "{{ current_user.role }}";
+        const adminRoles = ['admin', 'cyber_lead', 'it_lead', 'security_head'];
+        const isAdminRole = adminRoles.includes(currentUserRole);
+        let riskChart;
+        let assetsChart;
+        let findingsChart;
+
+        const formatIST = (dateString) => {
+            if (!dateString) return 'Never';
+            try {
+                const d = new Date(dateString);
+                if (isNaN(d)) return dateString;
+                const formatter = new Intl.DateTimeFormat('en-IN', {
+                    timeZone: 'Asia/Kolkata',
+                    day: '2-digit', month: 'short',
+                    hour: '2-digit', minute: '2-digit',
+                    hour12: false
+                });
+                return formatter.format(d).replace(',', '');
+            } catch { return dateString; }
+        };
+
+        const formatLabel = (dateString) => {
+            try {
+                const d = new Date(dateString);
+                if (isNaN(d)) return dateString;
+                return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+            } catch {
+                return dateString;
+            }
+        };
+
+        function getRiskScore(scan) {
+            const score = scan?.result?.crypto_agility_score?.score;
+            return Number.isFinite(score) ? score : 0;
+        }
+
+        function getAssetCount(scan) {
+            return scan?.cbom?.summary?.total_assets || 0;
+        }
+
+        function countFindings(scan) {
+            const vulnerabilities = scan?.vulnerabilities?.vulnerabilities || [];
+            let critical = 0;
+            let high = 0;
+            vulnerabilities.forEach(v => {
+                const level = String(v.risk_level || '').toUpperCase();
+                if (level === 'CRITICAL') critical += 1;
+                if (level === 'HIGH') high += 1;
+            });
+            return { critical, high };
+        }
+
+        function updateSummary(scans) {
+            const totalScans = scans.length;
+            const totalAssets = scans.reduce((acc, scan) => acc + getAssetCount(scan), 0);
+            const totalRisk = scans.reduce((acc, scan) => acc + getRiskScore(scan), 0);
+            const avgRisk = totalScans ? Math.round(totalRisk / totalScans) : 0;
+
+            const findings = scans.reduce((acc, scan) => {
+                const c = countFindings(scan);
+                acc.critical += c.critical;
+                acc.high += c.high;
+                return acc;
+            }, { critical: 0, high: 0 });
+
+            document.getElementById('totalScans').textContent = totalScans;
+            document.getElementById('avgRiskScore').textContent = avgRisk;
+            document.getElementById('totalAssets').textContent = totalAssets;
+            document.getElementById('criticalHigh').textContent = findings.critical + findings.high;
+
+            const deltaEl = document.getElementById('riskDelta');
+            if (scans.length >= 2) {
+                const sorted = [...scans].sort((a, b) => new Date(a.started_at) - new Date(b.started_at));
+                const last = getRiskScore(sorted[sorted.length - 1]);
+                const prev = getRiskScore(sorted[sorted.length - 2]);
+                const diff = last - prev;
+                const sign = diff >= 0 ? '+' : '';
+                deltaEl.textContent = `${sign}${diff} pts vs prev`;
+            } else {
+                deltaEl.textContent = '—';
+            }
+        }
+
+        function renderCharts(scans) {
+            const sorted = [...scans].sort((a, b) => new Date(a.started_at) - new Date(b.started_at));
+            const labels = sorted.map(scan => formatLabel(scan.started_at));
+            const riskScores = sorted.map(scan => getRiskScore(scan));
+            const assetCounts = sorted.map(scan => getAssetCount(scan));
+            const criticalCounts = sorted.map(scan => countFindings(scan).critical);
+            const highCounts = sorted.map(scan => countFindings(scan).high);
+
+            const riskCtx = document.getElementById('riskTrendChart');
+            const assetCtx = document.getElementById('assetsChart');
+            const findingsCtx = document.getElementById('findingsChart');
+
+            if (riskChart) riskChart.destroy();
+            if (assetsChart) assetsChart.destroy();
+            if (findingsChart) findingsChart.destroy();
+
+            riskChart = new Chart(riskCtx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Risk Score',
+                        data: riskScores,
+                        borderColor: '#6366F1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                        fill: true,
+                        tension: 0.35,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#4338CA'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, max: 100, grid: { color: 'rgba(15,23,42,0.08)' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            assetsChart = new Chart(assetCtx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Assets',
+                        data: assetCounts,
+                        backgroundColor: '#86EFAC',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(15,23,42,0.08)' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            findingsChart = new Chart(findingsCtx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Critical',
+                            data: criticalCounts,
+                            backgroundColor: '#F87171',
+                            borderRadius: 6
+                        },
+                        {
+                            label: 'High',
+                            data: highCounts,
+                            backgroundColor: '#FBBF24',
+                            borderRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true } }
+                    },
+                    scales: {
+                        x: { stacked: true, grid: { display: false } },
+                        y: { stacked: true, beginAtZero: true, grid: { color: 'rgba(15,23,42,0.08)' } }
+                    }
+                }
+            });
+        }
+
+        async function refreshHistory() {
+            const historyContainer = document.getElementById('scanHistory');
+            if (!historyContainer) return;
+
+            historyContainer.innerHTML = '<p class="text-gray-400 text-center py-8">Loading scan history...</p>';
+            try {
+                const response = await fetch('/api/history?limit=30');
+                if (!response.ok) {
+                    historyContainer.innerHTML = '<p class="text-gray-500 text-sm">Unable to load scan history.</p>';
+                    return;
+                }
+
+                const data = await response.json();
+                const scans = data.scans || [];
+                if (!scans.length) {
+                    historyContainer.innerHTML = '<p class="text-gray-400 text-center py-8">No scan history yet.</p>';
+                    updateSummary([]);
+                    renderCharts([]);
+                    return;
+                }
+
+                updateSummary(scans);
+                renderCharts(scans);
+
+                historyContainer.innerHTML = scans.map(scan => `
+                    <div class="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition cursor-pointer" onclick="window.location.href='/asset-inventory?scan_id=${scan.scan_id}'">
+                        <div class="flex items-center">
+                            <span class="w-2 h-2 rounded-full mr-3 ${scan.status === 'completed' ? 'bg-emerald-400' : 'bg-red-400'}"></span>
+                            <div>
+                                <span class="font-medium text-gray-900">${scan.target}</span>
+                                ${isAdminRole && scan.owner_username ? `<p class="text-xs text-gray-500">Scanned by: ${scan.owner_username}</p>` : ''}
+                                <p class="text-xs text-gray-400">${formatIST(scan.started_at)}</p>
+                            </div>
+                        </div>
+                        <div class="text-right text-xs text-gray-500">
+                            <div>Risk: ${getRiskScore(scan)}</div>
+                            <div>Assets: ${getAssetCount(scan)}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                historyContainer.innerHTML = '<p class="text-gray-500 text-sm">Error while loading scan history.</p>';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshHistory();
+        });
+    </script>
+</body>
+</html>

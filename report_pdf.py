@@ -307,12 +307,35 @@ def generate_pdf(
     story.append(Paragraph("2. TLS Connection Details", Sec))
     story.append(HRFlowable(width="100%", thickness=1, color=BRAND_DARK, spaceAfter=6))
 
-    tls_version    = result.get("tls_version", "N/A")
-    cipher         = result.get("cipher_suite", result.get("cipher", "N/A"))
-    key_exchange   = result.get("key_exchange", "N/A")
-    pqc_ready      = result.get("pqc_ready", False)
-    hybrid          = result.get("hybrid_key_exchange", False)
-    agility_score  = result.get("crypto_agility_score", result.get("agility_score", "N/A"))
+    tls_version = result.get("tls_version") or "N/A"
+    cipher_suites = result.get("cipher_suites") or []
+    key_exchange_details = result.get("key_exchange_details") or {}
+    pqc_detection = result.get("pqc_detection") or {}
+    pqc_summary = pqc_detection.get("summary") or {}
+
+    cipher = result.get("cipher_suite") or result.get("cipher")
+    if not cipher and cipher_suites:
+        preferred = next(
+            (cs for cs in cipher_suites if cs.get("tls_version") == tls_version),
+            cipher_suites[0],
+        )
+        cipher = preferred.get("cipher_suite")
+
+    key_exchange = result.get("key_exchange")
+    if not key_exchange:
+        key_exchange = key_exchange_details.get("algorithm")
+    if not key_exchange and cipher_suites:
+        key_exchange = (cipher_suites[0] or {}).get("key_exchange")
+    if not key_exchange:
+        key_exchange = "N/A"
+
+    pqc_ready = bool(pqc_summary.get("pqc_ready", False))
+    pqc_status = key_exchange_details.get("pqc_status") or {}
+    hybrid = pqc_status.get("mode") == "pqc_hybrid"
+
+    agility_score = result.get("crypto_agility_score", result.get("agility_score", "N/A"))
+    if isinstance(agility_score, dict):
+        agility_score = agility_score.get("score", "N/A")
 
     tls_data = [
         ["Parameter",        "Value"],

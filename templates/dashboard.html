@@ -294,9 +294,9 @@
                             <a href="/vendors" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Vendor Scanner</a>
                         </div>
                     </details>
-                    <a href="#asset-inventory" class="hover:text-gray-900 transition">Asset Inventory</a>
+                    <a href="/asset-inventory" class="hover:text-gray-900 transition">Asset Inventory</a>
                     <a href="#results" class="hover:text-gray-900 transition">Results</a>
-                    <a href="#history" class="hover:text-gray-900 transition">History</a>
+                    <a href="/history" class="hover:text-gray-900 transition">History</a>
                     <a href="/scheduled-reporting" class="hover:text-gray-900 transition">Scheduled Reports</a>
                     <a href="/learn" class="hover:text-gray-900 transition">Learn</a>
                     {% if current_user.role in ['admin', 'cyber_lead', 'it_lead', 'security_head'] %}
@@ -371,7 +371,7 @@
 
                         <div class="mt-4 flex flex-wrap gap-3">
                             <a href="/docs" target="_blank" class="btn-secondary text-gray-800 px-5 py-2.5 rounded-xl text-sm font-medium">Documentation</a>
-                            <a href="#history" class="btn-secondary text-gray-800 px-5 py-2.5 rounded-xl text-sm font-medium">History</a>
+                            <a href="/history" class="btn-secondary text-gray-800 px-5 py-2.5 rounded-xl text-sm font-medium">History</a>
                         </div>
 
                         <p id="scanStatus" class="hidden mt-4 text-gray-700 font-medium"></p>
