@@ -2227,39 +2227,16 @@
                 qarsHTML = '<tr><td colspan="5" class="py-6 text-center text-gray-400">No QARS scoring data for ' + host + '</td></tr>';
             }
 
-            // Update DOM with new data
-            if (domainsTable.innerHTML.includes('No assets scanned')) {
-                domainsTable.innerHTML = domainsHTML;
-            } else {
-                domainsTable.innerHTML += domainsHTML;
-            }
-
-            if (certsTable.innerHTML.includes('No certificates')) {
-                certsTable.innerHTML = certsHTML;
-            } else {
-                certsTable.innerHTML += certsHTML;
-            }
-
-            if (apisTable.innerHTML.includes('No API endpoints')) {
-                apisTable.innerHTML = apisHTML;
-            } else if (apisHTML !== '<tr><td colspan="6" class="py-6 text-center text-gray-400">No API endpoints discovered</td></tr>') {
-                apisTable.innerHTML += apisHTML;
-            }
+            // Update DOM with new data (replace previous scan data)
+            domainsTable.innerHTML = domainsHTML;
+            certsTable.innerHTML = certsHTML;
+            apisTable.innerHTML = apisHTML;
 
             const perimeterTable = document.getElementById('perimeter-inventory');
             const qarsTable = document.getElementById('qars-inventory');
             
-            if (perimeterTable.innerHTML.includes('No VPN or SSH') || perimeterTable.innerHTML.includes('No exposure found')) {
-                perimeterTable.innerHTML = perimeterHTML;
-            } else if (!perimeterHTML.includes('No VPN or SSH') && !perimeterHTML.includes('No exposure found')) {
-                perimeterTable.innerHTML += perimeterHTML;
-            }
-
-            if (qarsTable.innerHTML.includes('No scoring data')) {
-                qarsTable.innerHTML = qarsHTML;
-            } else if (!qarsHTML.includes('No scoring data')) {
-                qarsTable.innerHTML += qarsHTML;
-            }
+            perimeterTable.innerHTML = perimeterHTML;
+            qarsTable.innerHTML = qarsHTML;
 
             // Show/hide API issues alert
             const issuesAlert = document.getElementById('api-issues-alert');
@@ -2272,10 +2249,8 @@
                 issuesAlert.classList.add('hidden');
             }
 
-            // Update summary cards
-            const totalDomainsCells = document.querySelectorAll('#domains-inventory tr:not(:first-child)').length;
-            
-            document.getElementById('totalDomains').textContent = Math.max(totalDomainsCells, 1);
+            // Update summary cards for current scan only
+            document.getElementById('totalDomains').textContent = 1;
             document.getElementById('totalAPIs').textContent = combinedApiEndpoints.length;
             document.getElementById('securityIssues').textContent = publicIssues.length;
             

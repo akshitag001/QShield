@@ -159,7 +159,11 @@ def _extract_openapi_paths(payload: bytes, base_url: str, max_paths: int = 50) -
     return endpoints
 
 
-def _detect_api_endpoints(base_url: str, timeout: int = 5) -> List[Dict[str, Any]]:
+def _detect_api_endpoints(
+    base_url: str,
+    timeout: int = 5,
+    openapi_urls: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
     """
     Detect common API patterns by probing well-known paths and analyzing security.
     Returns metadata about discovered API endpoints with security analysis.
@@ -168,15 +172,41 @@ def _detect_api_endpoints(base_url: str, timeout: int = 5) -> List[Dict[str, Any
         "/api",
         "/api/v1",
         "/api/v2",
+        "/api/v3",
+        "/api/v4",
         "/v1",
         "/v2",
+        "/v3",
         "/graphql",
         "/rest",
+        "/rpc",
+        "/auth",
+        "/oauth",
+        "/oauth2",
+        "/login",
+        "/token",
+        "/users",
+        "/sessions",
+        "/admin",
+        "/me",
+        "/version",
+        "/docs",
         "/.well-known/openid-configuration",
+        "/swagger",
+        "/swagger-ui",
+        "/swagger-ui/",
         "/swagger.json",
+        "/swagger/v1/swagger.json",
         "/openapi.json",
+        "/openapi.yaml",
+        "/openapi.yml",
+        "/v3/api-docs",
+        "/v3/api-docs/swagger-config",
+        "/api-docs",
         "/health",
         "/status",
+        "/actuator",
+        "/actuator/health",
     ]
     
     discovered = []
@@ -229,8 +259,53 @@ def _detect_api_endpoints(base_url: str, timeout: int = 5) -> List[Dict[str, Any
                 discovered.append(endpoint_data)
 
                 # Extract paths from OpenAPI/Swagger payloads when available
-                if is_api and ("openapi" in content_type.lower() or path in ("/swagger.json", "/openapi.json")):
+                if is_api and (
+                    "openapi" in content_type.lower()
+                    or path in (
+                        "/swagger.json",
+                        "/swagger/v1/swagger.json",
+                        "/openapi.json",
+                        "/v3/api-docs",
+                        "/api-docs",
+                    )
+                ):
                     discovered.extend(_extract_openapi_paths(body, base_url))
+        except Exception:
+            pass
+
+    # Optional: manually provided OpenAPI URLs (absolute or relative)
+    for spec_url in (openapi_urls or []):
+        value = (spec_url or "").strip()
+        if not value:
+            continue
+
+        if value.startswith("/"):
+            url = f"{base_url.rstrip('/')}{value}"
+        else:
+            url = value
+
+        try:
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+
+            req = urllib.request.Request(url, method="GET")
+            req.add_header("User-Agent", "Q-Shield-Scanner/1.0")
+
+            body = b""
+            try:
+                with urllib.request.urlopen(req, timeout=timeout, context=ctx) as response:
+                    body = response.read(500000)
+            except urllib.error.HTTPError as e:
+                try:
+                    body = e.read(500000)
+                except Exception:
+                    body = b""
+
+            extracted = _extract_openapi_paths(body, base_url)
+            for item in extracted:
+                item["source"] = "openapi_manual"
+            discovered.extend(extracted)
         except Exception:
             pass
     
@@ -293,8 +368,13 @@ def _extract_headers_crypto_info(base_url: str, timeout: int = 5) -> Dict[str, A
     return headers_info
 
 
-async def scan_target_async(target: str, timeout: int = DEFAULT_TIMEOUT, 
-                            probe_apis: bool = True, probe_headers: bool = True) -> Dict[str, Any]:
+async def scan_target_async(
+    target: str,
+    timeout: int = DEFAULT_TIMEOUT,
+    probe_apis: bool = True,
+    probe_headers: bool = True,
+    openapi_urls: Optional[List[str]] = None,
+) -> Dict[str, Any]:
     """Scan a target using asyncio, wrapping synchronous TLS scan in to_thread."""
     tls_result = await asyncio.to_thread(scan_tls, target, timeout)
     
@@ -307,7 +387,7 @@ async def scan_target_async(target: str, timeout: int = DEFAULT_TIMEOUT,
     tasks.append(scan_ssh(host, 22, timeout))
     
     if probe_apis:
-        tasks.append(asyncio.to_thread(_detect_api_endpoints, base_url, timeout))
+        tasks.append(asyncio.to_thread(_detect_api_endpoints, base_url, timeout, openapi_urls))
     else:
         async def dummy_api(): return []
         tasks.append(dummy_api())
@@ -332,16 +412,21 @@ async def scan_target_async(target: str, timeout: int = DEFAULT_TIMEOUT,
     return tls_result
 
 
-async def scan_multiple_targets_async(targets: List[str], timeout: int = DEFAULT_TIMEOUT,
-                                      max_workers: int = 20, probe_apis: bool = True,
-                                      probe_headers: bool = True) -> List[Dict[str, Any]]:
+async def scan_multiple_targets_async(
+    targets: List[str],
+    timeout: int = DEFAULT_TIMEOUT,
+    max_workers: int = 20,
+    probe_apis: bool = True,
+    probe_headers: bool = True,
+    openapi_urls: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
     """Scan multiple targets concurrently with asyncio bounded semaphore."""
     sem = asyncio.Semaphore(max_workers)
     
     async def _bound_scan(target):
         async with sem:
             try:
-                result = await scan_target_async(target, timeout, probe_apis, probe_headers)
+                result = await scan_target_async(target, timeout, probe_apis, probe_headers, openapi_urls)
                 result["_scan_status"] = "success"
                 return result
             except Exception as e:

@@ -1244,6 +1244,23 @@ def _collect_cipher_suites(host: str, port: int, tls_versions: List[str], timeou
     return sorted(results, key=lambda x: (x["tls_version"], x["cipher_suite"]))
 
 
+def _pick_primary_tls_version(
+    tls_versions: List[str],
+    cipher_suites: List[Dict[str, Optional[str]]],
+) -> Optional[str]:
+    """Choose a single TLS version to display when multiple are supported."""
+    priority = ["TLSv1.3", "TLSv1.2", "TLSv1.1", "TLSv1.0"]
+    for version in priority:
+        if version in tls_versions:
+            return version
+
+    for version in priority:
+        if any(cs.get("tls_version") == version for cs in cipher_suites):
+            return version
+
+    return None
+
+
 # ── Key exchange details ──────────────────────────────────────────────────────
 
 def _get_key_exchange_details(host: str, port: int, tls_versions: List[str], timeout: int) -> Dict[str, Any]:
@@ -2720,6 +2737,7 @@ def scan_tls(
         "host": host,
         "ip_address": ip_address,
         "port": port,
+        "tls_version": _pick_primary_tls_version(tls_versions, cipher_suites),
         "tls_versions_supported": tls_versions,
         "cipher_suites": cipher_suites,
         "key_exchange_details": key_exchange_details,

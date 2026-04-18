@@ -27,7 +27,7 @@ async def discover_subdomains(domain: str, timeout: int = 15) -> List[str]:
                     name_value = entry.get("name_value", "")
                     for name in name_value.split('\n'):
                         name = name.strip().lower()
-                        if name.endswith(domain) and not name.startswith("*"):
+                        if (name == domain or name.endswith(f".{domain}")) and not name.startswith("*"):
                             discovered.add(name)
             else:
                 logger.warning(f"[Discovery] crt.sh returned status {response.status_code}")

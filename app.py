@@ -241,12 +241,20 @@ class ScanRequest(BaseModel):
         default=None,
         description="Optional comma-separated list of perimeter ports (VPN/SSH) to probe",
     )
+    openapi_urls: Optional[List[str]] = Field(
+        default=None,
+        description="Optional OpenAPI/Swagger URLs or paths to enumerate endpoints",
+    )
 
 
 class MultiScanRequest(BaseModel):
     targets: List[str] = Field(..., description="List of targets to scan")
     timeout: int = Field(default=10, ge=1, le=60)
     perimeter_ports: Optional[List[int]] = Field(default=None, description="Optional perimeter ports to probe")
+    openapi_urls: Optional[List[str]] = Field(
+        default=None,
+        description="Optional OpenAPI/Swagger URLs or paths to enumerate endpoints",
+    )
 
 
 class SubdomainScanRequest(BaseModel):
@@ -255,6 +263,10 @@ class SubdomainScanRequest(BaseModel):
     timeout: int = Field(default=10, ge=1, le=60)
     include_parent: bool = Field(default=True, description="Include parent target in combined CBOM")
     perimeter_ports: Optional[List[int]] = Field(default=None, description="Optional perimeter ports to probe")
+    openapi_urls: Optional[List[str]] = Field(
+        default=None,
+        description="Optional OpenAPI/Swagger URLs or paths to enumerate endpoints",
+    )
 
 
 class ScanResponse(BaseModel):
@@ -297,6 +309,10 @@ class VendorScanRequest(BaseModel):
     vendor_ids: List[str] = Field(default_factory=list)
     timeout: int = Field(default=12, ge=1, le=60)
     perimeter_ports: Optional[List[int]] = Field(default=None, description="Optional perimeter ports to probe")
+    openapi_urls: Optional[List[str]] = Field(
+        default=None,
+        description="Optional OpenAPI/Swagger URLs or paths to enumerate endpoints",
+    )
 
 
 def _initialize_database() -> None:
@@ -823,7 +839,12 @@ def _parse_ports_param(value: Optional[str]) -> Optional[List[int]]:
     return ports or None
 
 
-def _attach_api_endpoints(result: Dict[str, Any], target: str, timeout: int) -> None:
+def _attach_api_endpoints(
+    result: Dict[str, Any],
+    target: str,
+    timeout: int,
+    openapi_urls: Optional[List[str]] = None,
+) -> None:
     if not result or result.get("api_endpoints"):
         return
     base_url = _build_base_url(target)
@@ -831,7 +852,11 @@ def _attach_api_endpoints(result: Dict[str, Any], target: str, timeout: int) -> 
         return
     try:
         api_timeout = max(3, min(timeout, 8))
-        result["api_endpoints"] = _detect_api_endpoints(base_url, timeout=api_timeout)
+        result["api_endpoints"] = _detect_api_endpoints(
+            base_url,
+            timeout=api_timeout,
+            openapi_urls=openapi_urls,
+        )
     except Exception as exc:
         logger.debug(f"API endpoint discovery failed for {base_url}: {exc}")
 
@@ -1524,7 +1549,7 @@ async def scan_target_public(scan_request: ScanRequest, request: Request):
     
     try:
         result = scan_tls(normalized_target, timeout=scan_request.timeout)
-        _attach_api_endpoints(result, normalized_target, scan_request.timeout)
+        _attach_api_endpoints(result, normalized_target, scan_request.timeout, scan_request.openapi_urls)
         await _attach_perimeter_async(result, normalized_target, scan_request.timeout, scan_request.perimeter_ports)
         cbom = generate_cbom([result])
         cbom_dict = cbom.to_dict()
@@ -1557,7 +1582,7 @@ async def scan_target(scan_request: ScanRequest, request: Request, db: Session =
 
     try:
         result = scan_tls(normalized_target, timeout=scan_request.timeout)
-        _attach_api_endpoints(result, normalized_target, scan_request.timeout)
+        _attach_api_endpoints(result, normalized_target, scan_request.timeout, scan_request.openapi_urls)
         await _attach_perimeter_async(result, normalized_target, scan_request.timeout, scan_request.perimeter_ports)
         cbom = generate_cbom([result])
         cbom_dict = cbom.to_dict()
@@ -1633,6 +1658,7 @@ async def scan_target_stream(
     target: str,
     timeout: int = 15,
     perimeter_ports: Optional[str] = None,
+    openapi_urls: Optional[str] = None,
     request: Request = None,
     db: Session = Depends(get_db),
 ):
@@ -1668,13 +1694,14 @@ async def scan_target_stream(
         )
 
     parsed_perimeter_ports = _parse_ports_param(perimeter_ports)
+    parsed_openapi_urls = [part.strip() for part in (openapi_urls or "").split(",") if part.strip()]
 
     def _worker() -> None:
         local_db = SessionLocal()
         try:
             worker_user = local_db.get(User, user.id)
             result = scan_tls(normalized_target, timeout=timeout, progress_callback=_progress_callback)
-            _attach_api_endpoints(result, normalized_target, timeout)
+            _attach_api_endpoints(result, normalized_target, timeout, parsed_openapi_urls or None)
             _attach_perimeter_sync(result, normalized_target, timeout, parsed_perimeter_ports)
             cbom = generate_cbom([result])
             cbom_dict = cbom.to_dict()
@@ -1790,7 +1817,7 @@ async def scan_multiple_targets(scan_request: MultiScanRequest, request: Request
         try:
             normalized_target = _validate_scan_target_or_raise(target)
             result = scan_tls(normalized_target, timeout=scan_request.timeout)
-            _attach_api_endpoints(result, normalized_target, scan_request.timeout)
+            _attach_api_endpoints(result, normalized_target, scan_request.timeout, scan_request.openapi_urls)
             await _attach_perimeter_async(result, normalized_target, scan_request.timeout, scan_request.perimeter_ports)
             results.append(result)
         except Exception as e:
@@ -1846,7 +1873,7 @@ async def scan_subdomains(scan_request: SubdomainScanRequest, request: Request, 
         try:
             normalized_target = _validate_scan_target_or_raise(target)
             result = scan_tls(normalized_target, timeout=scan_request.timeout)
-            _attach_api_endpoints(result, normalized_target, scan_request.timeout)
+            _attach_api_endpoints(result, normalized_target, scan_request.timeout, scan_request.openapi_urls)
             await _attach_perimeter_async(result, normalized_target, scan_request.timeout, scan_request.perimeter_ports)
             results.append(result)
         except Exception as exc:
@@ -2669,7 +2696,7 @@ async def scan_vendors(payload: VendorScanRequest, request: Request, db: Session
 
         try:
             result = scan_tls(target, timeout=timeout)
-            _attach_api_endpoints(result, target, timeout)
+            _attach_api_endpoints(result, target, timeout, payload.openapi_urls)
             await _attach_perimeter_async(result, target, timeout, payload.perimeter_ports)
             cbom = generate_cbom([result])
             cbom_dict = cbom.to_dict()
