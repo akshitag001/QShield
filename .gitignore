@@ -22,6 +22,7 @@ wheels/
 *.egg
 *.db
 .db
+.json
 
 # Virtual Environment
 .venv/

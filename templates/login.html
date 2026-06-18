@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Q-Shield | Login</title>
+    <title>Q-Shield | Secure Portal Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
@@ -20,137 +20,331 @@
             }
         }
     </script>
+    <style>
+        .bg-grid {
+            background-size: 50px 50px;
+            background-image: 
+                linear-gradient(to right, rgba(15, 23, 42, 0.02) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(15, 23, 42, 0.02) 1px, transparent 1px);
+        }
+        .animate-spin-slow {
+            animation: spin 28s linear infinite;
+        }
+        .animate-pulse-slow {
+            animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .glow-overlay {
+            background: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.02) 0%, transparent 70%);
+        }
+    </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-gray-100 via-blue-50 to-gray-50 flex items-center justify-center px-4 py-8" style="background: linear-gradient(180deg, #f8f8fa 0%, #f2f3f7 100%);">
-    <div class="w-full max-w-md">
+<body class="min-h-screen bg-[#F6F8FA] text-slate-800 font-sans flex items-center justify-center px-4 py-8 relative overflow-hidden bg-grid">
+    
+    <!-- Background Soft Glow Blobs -->
+    <div class="absolute top-10 left-10 w-96 h-96 rounded-full bg-indigo-500/5 blur-[120px] pointer-events-none"></div>
+    <div class="absolute bottom-10 right-10 w-96 h-96 rounded-full bg-cyan-500/5 blur-[120px] pointer-events-none"></div>
+    <div class="absolute inset-0 glow-overlay pointer-events-none"></div>
+
+    <!-- LEFT PANEL: Cryptography Engine Status (Desktop Only) -->
+    <div class="hidden lg:flex flex-col justify-between p-8 xl:p-10 absolute left-0 top-0 bottom-0 w-[280px] xl:w-[340px] border-r border-slate-200/50 bg-[#F6F8FA]/90 backdrop-blur-sm z-10">
+        <div>
+            <span class="text-[10px] font-bold tracking-widest text-slate-400 uppercase font-display block mb-1">Q-Engine Specs</span>
+            <h2 class="text-xs font-bold tracking-widest text-slate-800 uppercase mb-6">PQC Cryptographic Suites</h2>
+            
+            <div class="space-y-4">
+                <div class="p-3 bg-white rounded-xl border border-slate-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.01)]">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-semibold text-slate-800">ML-KEM (Kyber-768)</span>
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    </div>
+                    <p class="text-[10px] text-slate-500">Key Encapsulation Mechanism. Status: Active & Secured.</p>
+                </div>
+
+                <div class="p-3 bg-white rounded-xl border border-slate-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.01)]">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-semibold text-slate-800">ML-DSA (Dilithium-652)</span>
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    </div>
+                    <p class="text-[10px] text-slate-500">Digital Signature Algorithm. Status: Active & Authenticated.</p>
+                </div>
+
+                <div class="p-3 bg-slate-100/60 rounded-xl border border-slate-200/40">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-semibold text-slate-600">SLH-DSA (SPHINCS+)</span>
+                        <span class="w-2 h-2 rounded-full bg-slate-300"></span>
+                    </div>
+                    <p class="text-[10px] text-slate-400">Stateless Hash-Based Signatures. Status: Standby.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lattice Vector Graphic -->
+        <div class="my-6">
+            <span class="text-[10px] font-bold tracking-widest text-slate-400 uppercase font-display block mb-3">Lattice Space Math</span>
+            <div class="p-4 bg-white rounded-xl border border-slate-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex flex-col items-center justify-center">
+                <!-- SVG Lattice Visualizer -->
+                <svg class="w-full h-32 text-indigo-400/80 mb-2" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="1.5" fill="currentColor" opacity="0.3" />
+                    <circle cx="50" cy="20" r="1.5" fill="currentColor" opacity="0.3" />
+                    <circle cx="80" cy="20" r="1.5" fill="currentColor" opacity="0.3" />
+                    <circle cx="110" cy="20" r="1.5" fill="currentColor" opacity="0.3" />
+                    
+                    <circle cx="35" cy="40" r="1.5" fill="currentColor" opacity="0.3" />
+                    <circle cx="65" cy="40" r="1.5" fill="currentColor" opacity="0.3" />
+                    <circle cx="95" cy="40" r="1.5" fill="currentColor" opacity="0.3" />
+                    
+                    <circle cx="20" cy="60" r="1.5" fill="currentColor" opacity="0.3" />
+                    <circle cx="50" cy="60" r="1.5" fill="currentColor" opacity="0.3" />
+                    <circle cx="80" cy="60" r="1.5" fill="currentColor" opacity="0.3" />
+                    <circle cx="110" cy="60" r="1.5" fill="currentColor" opacity="0.3" />
+
+                    <!-- Vector Paths -->
+                    <line x1="50" y1="20" x2="65" y2="40" stroke="#6366F1" stroke-width="1.5" />
+                    <line x1="50" y1="20" x2="20" y2="60" stroke="#06B6D4" stroke-width="1.5" />
+                    <path d="M 65 40 L 35 80" stroke="#10B981" stroke-width="1" stroke-dasharray="2 2" />
+                    
+                    <!-- Text formula -->
+                    <text x="5" y="75" font-family="Space Grotesk, sans-serif" font-size="6" fill="#64748B">A • s + e ≡ t (mod q)</text>
+                </svg>
+                <div class="text-[9px] font-mono text-slate-400 text-center font-semibold">Kyber LWE (Learning With Errors) Space</div>
+            </div>
+        </div>
+
+        <div class="text-[10px] font-mono text-slate-400">
+            <div>SECURE SEED SOURCE: HRNG</div>
+            <div>STATUS: ONLINE</div>
+        </div>
+    </div>
+
+    <!-- RIGHT PANEL: System Telemetry & Key Exchange (Desktop Only) -->
+    <div class="hidden lg:flex flex-col justify-between p-8 xl:p-10 absolute right-0 top-0 bottom-0 w-[280px] xl:w-[340px] border-l border-slate-200/50 bg-[#F6F8FA]/90 backdrop-blur-sm z-10">
+        <div>
+            <span class="text-[10px] font-bold tracking-widest text-slate-400 uppercase font-display block mb-1">Security Console</span>
+            <h2 class="text-xs font-bold tracking-widest text-slate-800 uppercase mb-6">Real-Time Threat Status</h2>
+
+            <div class="space-y-4">
+                <div class="p-3 bg-white rounded-xl border border-slate-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex justify-between items-center">
+                    <div>
+                        <div class="text-xs font-semibold text-slate-800">Scanner Queue</div>
+                        <p class="text-[10px] text-slate-400">Inventory scan worker queue</p>
+                    </div>
+                    <span class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">0 Idle</span>
+                </div>
+
+                <div class="p-3 bg-white rounded-xl border border-slate-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex justify-between items-center">
+                    <div>
+                        <div class="text-xs font-semibold text-slate-800">Threat Level</div>
+                        <p class="text-[10px] text-slate-400">PQC defense threshold</p>
+                    </div>
+                    <span class="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">Low</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Encapsulation Visual -->
+        <div class="my-6">
+            <span class="text-[10px] font-bold tracking-widest text-slate-400 uppercase font-display block mb-3">PQC Key Encapsulation (KEM)</span>
+            <div class="p-4 bg-white rounded-xl border border-slate-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.01)] flex flex-col items-center">
+                <!-- KEM SVG Visual -->
+                <svg class="w-32 h-32 text-indigo-500 animate-pulse-slow" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="50" cy="50" r="38" stroke="rgba(15, 23, 42, 0.05)" stroke-width="1.5" />
+                    <circle cx="50" cy="50" r="30" stroke="rgba(99, 102, 241, 0.1)" stroke-dasharray="5 5" stroke-width="1" />
+                    
+                    <!-- Nodes -->
+                    <circle cx="50" cy="12" r="4" fill="#6366F1" />
+                    <circle cx="50" cy="88" r="4" fill="#06B6D4" />
+                    <circle cx="12" cy="50" r="4" fill="#10B981" />
+                    
+                    <!-- Connection Lines -->
+                    <path d="M 50 12 L 12 50 L 50 88" stroke="#64748B" stroke-dasharray="3 3" stroke-width="1" />
+                    <path d="M 50 12 L 50 88" stroke="#6366F1" stroke-width="1.5" />
+                    
+                    <!-- Inner lock/key icon -->
+                    <g transform="translate(42, 42)">
+                        <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" stroke="#64748B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                    </g>
+                </svg>
+                <div class="text-[9px] font-mono text-slate-400 font-semibold mt-2">Active Session Key Exchange Flow</div>
+            </div>
+        </div>
+
+        <div class="text-[10px] font-mono text-slate-400">
+            <div>CONSOLE TARGET: 127.0.0.1</div>
+            <div class="flex items-center gap-1">
+                <span>VERIFICATION:</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-ping"></span>
+                <span class="text-slate-600 font-bold">SECURED</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- CENTER LOGIN FORM -->
+    <div class="w-full max-w-md relative z-20">
+        
         <!-- Sign In Tab -->
-        <div id="signin-container" class="bg-white rounded-2xl shadow-lg p-8 border border-gray-200" style="background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(15, 23, 42, 0.08);">
+        <div id="signin-container" class="bg-white/80 backdrop-blur-md rounded-2xl shadow-[0_20px_50px_rgba(15,23,42,0.04)] p-8 border border-slate-200/60 relative overflow-hidden transition-all duration-300 transform hover:shadow-[0_25px_60px_rgba(15,23,42,0.06)]">
+            <!-- Subtle top accent line -->
+            <div class="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
+            
             <div class="mb-8 text-center">
-                <h1 class="text-3xl font-bold" style="color: #111827;">Q-Shield</h1>
-                <p class="text-xs font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full mt-2 inline-block">
-                    “Quantum-Ready Cybersecurity for Future-Safe Banking”
-                </p>
-                <p class="text-sm mt-2" style="color: #6b7280;">Cryptographic Inventory Scanner</p>
+                <!-- SVG Shield Logo -->
+                <div class="relative w-20 h-20 mx-auto mb-4 flex items-center justify-center">
+                    <!-- Outer Ring -->
+                    <svg class="absolute inset-0 w-full h-full animate-spin-slow" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="44" stroke="rgba(15, 23, 42, 0.04)" stroke-width="1.5" fill="none" />
+                        <circle cx="50" cy="50" r="44" stroke="rgba(99, 102, 241, 0.2)" stroke-width="2" fill="none" stroke-dasharray="12 18" />
+                    </svg>
+                    <!-- Shield -->
+                    <svg class="w-11 h-11 text-slate-700 drop-shadow-[0_2px_4px_rgba(15,23,42,0.05)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                </div>
+                
+                <h1 class="text-3xl font-display font-bold tracking-tight text-slate-900">Q-Shield</h1>
+                <span class="text-[9px] font-bold text-slate-500 bg-slate-100 border border-slate-200/60 px-3 py-1 rounded-full mt-3 inline-block uppercase tracking-widest font-display">
+                    Cryptographic Scanner Portal
+                </span>
+                <p class="text-xs mt-3.5 text-slate-500 font-medium">“Quantum-Ready Cybersecurity for Future-Safe Banking”</p>
             </div>
 
+            <!-- Toast alert -->
+            <div id="signin-alert" class="mb-4 hidden p-3 rounded-xl text-sm flex items-center gap-2"></div>
+
             {% if error %}
-            <div class="mb-4 p-3 rounded-xl bg-red-50 text-red-700 border border-red-200 text-sm">
-                {{ error }}
+            <div class="mb-4 p-3 rounded-xl bg-red-50 text-red-700 border border-red-150 text-sm flex items-center gap-2">
+                <svg class="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                <span>{{ error }}</span>
             </div>
             {% endif %}
 
             <form method="post" action="/login" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-semibold mb-2" style="color: #111827;">EMAIL ADDRESS</label>
+                    <label class="block text-xs font-semibold tracking-widest text-slate-500 mb-1.5 uppercase">Username / Email</label>
                     <input id="username" name="username" type="text" placeholder="your.email@company.com" required 
-                        class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:border-transparent transition" style="focus:ring-color: rgba(17, 24, 39, 0.1);" />
+                        class="w-full bg-white border border-slate-200 text-slate-900 placeholder-slate-400 px-4 py-2.5 rounded-xl focus:outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-900/5 transition-all duration-200" />
                 </div>
                 
                 <div>
-                    <label class="block text-sm font-semibold mb-2" style="color: #111827;">PASSWORD</label>
+                    <label class="block text-xs font-semibold tracking-widest text-slate-500 mb-1.5 uppercase">Password</label>
                     <div class="relative">
-                        <input id="signin-password" name="password" type="password" placeholder="Minimum 8 characters" required 
-                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:border-transparent transition" style="focus:ring-color: rgba(17, 24, 39, 0.1);" />
-                        <button type="button" onclick="togglePassword('signin-password')" class="absolute right-3 top-3 transition" style="color: #6b7280;">
-                            <span class="text-sm hover:font-semibold">Show</span>
+                        <input id="signin-password" name="password" type="password" placeholder="••••••••" required 
+                            class="w-full bg-white border border-slate-200 text-slate-900 placeholder-slate-400 px-4 py-2.5 rounded-xl focus:outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-900/5 transition-all duration-200" />
+                        <button type="button" onclick="togglePassword('signin-password')" class="absolute right-4 top-3 text-slate-400 hover:text-slate-600 transition-colors">
+                            <span id="signin-password-toggle-text" class="text-xs font-semibold tracking-wider uppercase">Show</span>
                         </button>
                     </div>
                 </div>
 
-                <button type="submit" class="w-full py-3 rounded-lg text-white font-bold hover:shadow-lg transition mt-6" style="background-color: #111827;">
-                    Sign In
+                <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-3 px-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 mt-6">
+                    Sign In to Console
                 </button>
             </form>
 
-            <div class="mt-6 pt-6 border-t border-gray-200 text-center">
-                <p class="text-sm" style="color: #6b7280;">Don't have an account? 
-                    <button type="button" onclick="toggleAuthMode()" class="font-bold hover:underline" style="color: #111827;">Create Account</button>
+            <div class="mt-6 pt-6 border-t border-slate-100 text-center">
+                <p class="text-sm text-slate-500">Don't have an account? 
+                    <button type="button" onclick="toggleAuthMode()" class="text-slate-900 font-bold hover:underline transition-colors ml-1">Create Account</button>
                 </p>
             </div>
         </div>
 
         <!-- Create Account Tab -->
-        <div id="signup-container" class="bg-white rounded-2xl shadow-lg p-8 border border-gray-200 hidden" style="background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(15, 23, 42, 0.08);">
-            <div class="mb-8 text-center">
-                <h1 class="text-3xl font-bold" style="color: #111827;">Q-Shield</h1>
-                <p class="text-xs font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full mt-2 inline-block">
-                    “Quantum-Ready Cybersecurity for Future-Safe Banking”
-                </p>
-                <p class="text-sm mt-2" style="color: #6b7280;">Create Your Account</p>
+        <div id="signup-container" class="bg-white/80 backdrop-blur-md rounded-2xl shadow-[0_20px_50px_rgba(15,23,42,0.04)] p-8 border border-slate-200/60 relative overflow-hidden hidden transition-all duration-300 transform hover:shadow-[0_25px_60px_rgba(15,23,42,0.06)]">
+            <!-- Subtle top accent line -->
+            <div class="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
+            
+            <div class="mb-6 text-center">
+                <!-- SVG Logo mini -->
+                <div class="relative w-16 h-16 mx-auto mb-3 flex items-center justify-center">
+                    <svg class="absolute inset-0 w-full h-full animate-spin-slow" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="44" stroke="rgba(15, 23, 42, 0.04)" stroke-width="1.5" fill="none" />
+                        <circle cx="50" cy="50" r="44" stroke="rgba(99, 102, 241, 0.15)" stroke-width="1.5" fill="none" stroke-dasharray="10 20" />
+                    </svg>
+                    <svg class="w-9 h-9 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                    </svg>
+                </div>
+                
+                <h1 class="text-2xl font-display font-bold tracking-tight text-slate-900">Register</h1>
+                <p class="text-xs mt-1.5 text-slate-500">Create your Q-Shield analyst profile</p>
             </div>
 
+            <!-- Toast alert -->
+            <div id="signup-alert" class="mb-4 hidden p-3 rounded-xl text-sm flex items-center gap-2"></div>
+
             {% if signup_error %}
-            <div class="mb-4 p-3 rounded-xl bg-red-50 text-red-700 border border-red-200 text-sm">
-                {{ signup_error }}
+            <div class="mb-4 p-3 rounded-xl bg-red-50 text-red-700 border border-red-150 text-sm flex items-center gap-2">
+                <svg class="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                <span>{{ signup_error }}</span>
             </div>
             {% endif %}
 
             {% if signup_success %}
-            <div class="mb-4 p-3 rounded-xl bg-green-50 text-green-700 border border-green-200 text-sm">
-                {{ signup_success }}
+            <div class="mb-4 p-3 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-150 text-sm flex items-center gap-2">
+                <svg class="w-4 h-4 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span>{{ signup_success }}</span>
             </div>
             {% endif %}
 
             <form id="signup-form" method="post" action="/api/auth/register" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-semibold mb-2" style="color: #111827;">FULL NAME</label>
-                    <input name="full_name" type="text" placeholder="Your full name" required 
-                        class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:border-transparent transition" style="focus:ring-color: rgba(17, 24, 39, 0.1);" />
+                    <label class="block text-xs font-semibold tracking-widest text-slate-500 mb-1.5 uppercase">Full Name</label>
+                    <input name="full_name" type="text" placeholder="SOC Analyst" required 
+                        class="w-full bg-white border border-slate-200 text-slate-900 placeholder-slate-400 px-4 py-2.5 rounded-xl focus:outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-900/5 transition-all duration-200" />
                 </div>
 
                 <div>
-                    <label class="block text-sm font-semibold mb-2" style="color: #111827;">EMAIL ADDRESS</label>
+                    <label class="block text-xs font-semibold tracking-widest text-slate-500 mb-1.5 uppercase">Email Address</label>
                     <input name="email" type="email" placeholder="email@company.com" required 
-                        class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:border-transparent transition" style="focus:ring-color: rgba(17, 24, 39, 0.1);" />
+                        class="w-full bg-white border border-slate-200 text-slate-900 placeholder-slate-400 px-4 py-2.5 rounded-xl focus:outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-900/5 transition-all duration-200" />
                 </div>
 
                 <div>
-                    <label class="block text-sm font-semibold mb-2" style="color: #111827;">PASSWORD</label>
+                    <label class="block text-xs font-semibold tracking-widest text-slate-500 mb-1.5 uppercase">Password</label>
                     <div class="relative">
-                        <input id="signup-password" name="password" type="password" placeholder="Minimum 8 characters" required 
-                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:border-transparent transition" style="focus:ring-color: rgba(17, 24, 39, 0.1);" />
-                        <button type="button" onclick="togglePassword('signup-password')" class="absolute right-3 top-3 transition" style="color: #6b7280;">
-                            <span class="text-sm hover:font-semibold">Show</span>
+                        <input id="signup-password" name="password" type="password" placeholder="••••••••" required 
+                            class="w-full bg-white border border-slate-200 text-slate-900 placeholder-slate-400 px-4 py-2.5 rounded-xl focus:outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-900/5 transition-all duration-200" />
+                        <button type="button" onclick="togglePassword('signup-password')" class="absolute right-4 top-3 text-slate-400 hover:text-slate-600 transition-colors">
+                            <span id="signup-password-toggle-text" class="text-xs font-semibold tracking-wider uppercase">Show</span>
                         </button>
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-semibold mb-2" style="color: #111827;">ROLE (FR2 - RBAC)</label>
-                    <select name="role" required class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:border-transparent transition bg-white" style="focus:ring-color: rgba(17, 24, 39, 0.1);">
-                        <option value="analyst">SOC Analyst</option>
-                        <option value="viewer">Viewer</option>
-                        <option value="cyber_lead">Cyber Lead</option>
-                        <option value="it_lead">IT Lead</option>
-                        <option value="security_head">Security Head</option>
-                    </select>
+                    <label class="block text-xs font-semibold tracking-widest text-slate-500 mb-1.5 uppercase">Role (FR2 - RBAC)</label>
+                    <div class="relative">
+                        <select name="role" required class="w-full bg-white border border-slate-200 text-slate-900 px-4 py-2.5 rounded-xl focus:outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-900/5 transition-all duration-200 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2364748b%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:10px_10px] bg-[right_1rem_center] bg-no-repeat">
+                            <option value="analyst">SOC Analyst</option>
+                            <option value="viewer">Viewer</option>
+                            <option value="cyber_lead">Cyber Lead</option>
+                            <option value="it_lead">IT Lead</option>
+                            <option value="security_head">Security Head</option>
+                        </select>
+                    </div>
                 </div>
 
-                <button type="submit" class="w-full py-3 rounded-lg text-white font-bold hover:shadow-lg transition mt-6" style="background-color: #111827;">
-                    Create Account
+                <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-3 px-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5 mt-6">
+                    Request Credentials
                 </button>
             </form>
 
-            <div class="mt-4 p-4 rounded-lg bg-blue-50 border border-blue-200">
-                <p class="text-sm" style="color: #1e40af;">
-                    ✓ Accounts are verified by admin before first login.
+            <div class="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                <p class="text-xs text-slate-500 flex items-center justify-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                    <span>Accounts require admin activation before first login.</span>
                 </p>
             </div>
 
-            <div class="mt-6 pt-6 border-t border-gray-200 text-center">
-                <p class="text-sm" style="color: #6b7280;">Already have an account? 
-                    <button type="button" onclick="toggleAuthMode()" class="font-bold hover:underline" style="color: #111827;">Sign In</button>
+            <div class="mt-6 pt-6 border-t border-slate-100 text-center">
+                <p class="text-sm text-slate-500">Already have an account? 
+                    <button type="button" onclick="toggleAuthMode()" class="text-slate-900 font-bold hover:underline transition-colors ml-1">Sign In</button>
                 </p>
             </div>
         </div>
     </div>
-
-    <!-- Styles and Scripts -->
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-        }
-    </style>
 
     <script>
         function toggleAuthMode() {
@@ -163,8 +357,32 @@
 
         function togglePassword(fieldId) {
             const field = document.getElementById(fieldId);
-            const isPassword = field.type === 'password';
-            field.type = isPassword ? 'text' : 'password';
+            const toggleText = document.getElementById(fieldId + '-toggle-text');
+            if (field.type === 'password') {
+                field.type = 'text';
+                toggleText.textContent = 'Hide';
+            } else {
+                field.type = 'password';
+                toggleText.textContent = 'Show';
+            }
+        }
+
+        function showAlert(containerId, message, type) {
+            const alertDiv = document.getElementById(containerId + '-alert');
+            if (!alertDiv) return;
+            
+            alertDiv.className = `mb-4 p-3 rounded-xl text-sm flex items-center gap-2 ${
+                type === 'success' 
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-150' 
+                : 'bg-red-50 text-red-700 border border-red-150'
+            }`;
+            
+            const iconSvg = type === 'success' 
+                ? `<svg class="w-4 h-4 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`
+                : `<svg class="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`;
+                
+            alertDiv.innerHTML = `${iconSvg}<span>${message}</span>`;
+            alertDiv.classList.remove('hidden');
         }
 
         // Handle signup form submission
@@ -191,15 +409,15 @@
                 const result = await response.json();
                 
                 if (response.ok) {
-                    // Show success message
-                    alert('Account created successfully! Please wait for admin verification before logging in.');
+                    showAlert('signin', 'Account created successfully! Please wait for admin verification before logging in.', 'success');
                     document.getElementById('signup-form').reset();
                     toggleAuthMode(); // Switch back to sign in
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
-                    alert(result.detail || 'Error creating account');
+                    showAlert('signup', result.detail || 'Error creating account', 'error');
                 }
             } catch (error) {
-                alert('Error: ' + error.message);
+                showAlert('signup', 'Connection error: ' + error.message, 'error');
             }
         });
     </script>
