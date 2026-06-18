@@ -1148,7 +1148,19 @@
                     if (!completed) {
                         source.close();
                         if (!sawStageEvent) {
-                            reject(new Error('Unable to start scan for this target. Check domain format (e.g., example.com or rru.ac.in).'));
+                            fetch('/api/stats')
+                                .then(response => {
+                                    if (response.status === 401 || response.status === 403) {
+                                        alert('Session expired. Please log in again.');
+                                        window.location.href = '/login';
+                                        reject(new Error('Session expired. Please log in again.'));
+                                    } else {
+                                        reject(new Error('Unable to start scan for this target. Check if the target is online and check domain format (e.g., example.com or rru.ac.in).'));
+                                    }
+                                })
+                                .catch(() => {
+                                    reject(new Error('Unable to start scan for this target. Check domain format (e.g., example.com or rru.ac.in).'));
+                                });
                             return;
                         }
                         reject(new Error('Scan stream interrupted. Please retry.'));

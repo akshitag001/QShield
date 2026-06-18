@@ -1688,10 +1688,10 @@ async def scan_target(scan_request: ScanRequest, request: Request, db: Session =
 @app.get("/api/scan/stream")
 async def scan_target_stream(
     target: str,
+    request: Request,
     timeout: int = 15,
     perimeter_ports: Optional[str] = None,
     openapi_urls: Optional[str] = None,
-    request: Request = None,
     db: Session = Depends(get_db),
 ):
     """Run scan and stream stage events for real-time visualization."""
