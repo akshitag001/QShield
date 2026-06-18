@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Q-Shield | Asset Inventory</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --q-bg-a: #f8f8fa;
+            --q-bg-b: #f2f3f7;
+            --q-panel: rgba(255, 255, 255, 0.9);
+            --q-border: rgba(15, 23, 42, 0.08);
+            --q-text: #12131a;
+        }
+
+        body {
+            background: linear-gradient(180deg, var(--q-bg-a) 0%, var(--q-bg-b) 100%);
+            min-height: 100vh;
+            color: var(--q-text);
+            position: relative;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(500px 300px at 90% 20%, rgba(244, 114, 182, 0.12), transparent 70%),
+                radial-gradient(500px 300px at 8% 0%, rgba(148, 163, 184, 0.12), transparent 70%);
+            opacity: 0.65;
+        }
+
+        .glass-card {
+            background: var(--q-panel);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--q-border);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .card-lift {
+            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+        }
+
+        .card-lift:hover {
+            transform: translateY(-2px);
+            border-color: rgba(17, 24, 39, 0.14);
+            box-shadow: 0 14px 28px rgba(17, 24, 39, 0.09);
+        }
+
+        .btn-primary {
+            background: #111827;
+            box-shadow: 0 8px 20px rgba(17, 24, 39, 0.18);
+            transition: all 0.28s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            background: #0b1220;
+        }
+
+        .btn-secondary {
+            background: #ffffff;
+            border: 1px solid rgba(17, 24, 39, 0.14);
+            transition: all 0.28s ease;
+        }
+
+        .btn-secondary:hover {
+            border-color: rgba(17, 24, 39, 0.28);
+        }
+
+        details.nav-dropdown > summary {
+            list-style: none;
+        }
+
+        details.nav-dropdown > summary::-webkit-details-marker {
+            display: none;
+        }
+    </style>
+</head>
+<body class="font-sans text-gray-900">
+    <nav class="sticky top-0 z-30 backdrop-blur-sm bg-white/70 border-b border-gray-200/70">
+        <div class="max-w-7xl mx-auto px-6 py-4">
+            <div class="glass-card rounded-2xl px-5 py-3 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 bg-gray-900 rounded-xl flex items-center justify-center shadow-sm">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                    </div>
+                    <span class="text-xl font-semibold text-gray-900">Q-Shield</span>
+                    <span class="hidden lg:inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200">
+                        Quantum-Ready Cybersecurity for Future-Safe Banking
+                    </span>
+                </div>
+                <div class="hidden md:flex items-center space-x-8 text-sm font-medium text-gray-500">
+                    <details class="nav-dropdown relative">
+                        <summary class="cursor-pointer hover:text-gray-900 transition">Scanner ▾</summary>
+                        <div class="absolute top-full left-0 mt-2 w-44 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-50">
+                            <a href="/#scanner" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Main Scanner</a>
+                            <a href="/vendors" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Vendor Scanner</a>
+                        </div>
+                    </details>
+                    <a href="/asset-inventory" class="text-gray-900">Asset Inventory</a>
+                    <a href="/#results" class="hover:text-gray-900 transition">Results</a>
+                    <a href="/history" class="hover:text-gray-900 transition">History</a>
+                    <a href="/scheduled-reporting" class="hover:text-gray-900 transition">Scheduled Reports</a>
+                    <a href="/learn" class="hover:text-gray-900 transition">Learn</a>
+                    {% if current_user.role in ['admin', 'cyber_lead', 'it_lead', 'security_head'] %}
+                    <a href="/logs" class="hover:text-gray-900 transition">Logs</a>
+                    {% endif %}
+                    {% if current_user.role == 'admin' %}
+                    <a href="/user_management" class="hover:text-gray-900 transition">Users</a>
+                    {% endif %}
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="hidden sm:inline text-xs text-gray-500 px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200">
+                        {{ current_user.username }} ({{ current_user.role }})
+                    </span>
+                    <a href="/" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Dashboard</a>
+                    <a href="/logout" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <section class="relative z-10 py-12 pb-24">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="mb-8 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-3xl font-semibold text-gray-900 mb-2">Asset Inventory</h2>
+                    <p class="text-gray-600">Review asset, API, and perimeter exposure for a specific scan.</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="loadLatestScan()" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Load Latest</button>
+                    <button onclick="refreshHistory()" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Refresh History</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div class="glass-card rounded-2xl p-6">
+                    <div class="text-sm text-gray-600 mb-2">Total Domains</div>
+                    <div id="totalDomains" class="text-3xl font-bold text-gray-900">0</div>
+                </div>
+                <div class="glass-card rounded-2xl p-6">
+                    <div class="text-sm text-gray-600 mb-2">API Endpoints</div>
+                    <div id="totalAPIs" class="text-3xl font-bold text-gray-900">0</div>
+                </div>
+                <div class="glass-card rounded-2xl p-6">
+                    <div class="text-sm text-gray-600 mb-2">Security Issues</div>
+                    <div id="securityIssues" class="text-3xl font-bold text-red-600">0</div>
+                </div>
+                <div class="glass-card rounded-2xl p-6">
+                    <div class="text-sm text-gray-600 mb-2">PQC Ready</div>
+                    <div id="pqcReady" class="text-3xl font-bold text-green-600">0%</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-[2fr,1fr] gap-6 mb-8">
+                <div class="glass-card card-lift rounded-3xl p-8">
+                    <div class="flex gap-4 border-b border-gray-200 mb-6 overflow-x-auto">
+                        <button onclick="switchInventoryTab('domains')" class="inventory-tab-btn active px-4 py-3 font-medium text-gray-700 border-b-2 border-gray-900 hover:text-gray-900 transition whitespace-nowrap">Domains</button>
+                        <button onclick="switchInventoryTab('api')" class="inventory-tab-btn px-4 py-3 font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition whitespace-nowrap">API Endpoints</button>
+                        <button onclick="switchInventoryTab('certificates')" class="inventory-tab-btn px-4 py-3 font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition whitespace-nowrap">Certificates</button>
+                        <button onclick="switchInventoryTab('security')" class="inventory-tab-btn px-4 py-3 font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition whitespace-nowrap">Security Status</button>
+                        <button onclick="switchInventoryTab('perimeter')" class="inventory-tab-btn px-4 py-3 font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition whitespace-nowrap">Network Perimeter</button>
+                        <button onclick="switchInventoryTab('qars')" class="inventory-tab-btn px-4 py-3 font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition whitespace-nowrap">QARS & Certs</button>
+                    </div>
+
+                    <div id="domains-tab" class="inventory-tab">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-gray-200">
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Domain</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">IP Address</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Port</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">TLS Version</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Certificate</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="domains-inventory">
+                                    <tr><td colspan="6" class="py-8 text-center text-gray-400">Load a scan to populate inventory.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="api-tab" class="inventory-tab hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-gray-200">
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Domain</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Endpoint Path</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">CORS</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Auth Required</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Rate Limit</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="api-inventory">
+                                    <tr><td colspan="6" class="py-8 text-center text-gray-400">No API endpoints loaded.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="certificates-tab" class="inventory-tab hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-gray-200">
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Subject</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Valid From</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Valid To</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Signature Algorithm</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Key Size</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">PQC Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="certs-inventory">
+                                    <tr><td colspan="6" class="py-8 text-center text-gray-400">No certificates loaded.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="security-tab" class="inventory-tab hidden">
+                        <div class="space-y-4" id="security-inventory">
+                            <div class="text-center text-gray-400 py-8">No security data available.</div>
+                        </div>
+                    </div>
+
+                    <div id="perimeter-tab" class="inventory-tab hidden">
+                        <p class="text-xs text-gray-500 mb-3">Perimeter checks probe common VPN and SSH entry points on the host.</p>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-gray-200">
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Domain</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Service</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Banner / Type</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Details</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="perimeter-inventory">
+                                    <tr><td colspan="5" class="py-8 text-center text-gray-400">No VPN or SSH gateways discovered.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="qars-tab" class="inventory-tab hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-gray-200">
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Domain</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">QARS Score</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">HNDL Deadline</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">PQC Certificate Status</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Signature</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="qars-inventory">
+                                    <tr><td colspan="5" class="py-8 text-center text-gray-400">No scoring data available.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card card-lift rounded-3xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900">Recent Scans</h3>
+                        <button onclick="refreshHistory()" class="text-sm text-gray-600 hover:text-gray-900 font-medium transition">Refresh</button>
+                    </div>
+                    <div id="scanHistory" class="space-y-3">
+                        <p class="text-gray-400 text-center py-8">Loading scan history...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="api-issues-alert" class="hidden mt-8 glass-card rounded-2xl p-6 border-l-4 border-red-500 bg-red-50">
+                <h3 class="text-lg font-semibold text-red-900 mb-3">⚠ API Security Issues Found</h3>
+                <ul id="issues-list" class="space-y-2 text-red-800 text-sm"></ul>
+            </div>
+        </div>
+    </section>
+
+    <div id="downloadContainer" class="hidden fixed bottom-6 right-6 z-50">
+        <div class="flex gap-2">
+            <button onclick="downloadLatestCBOM('json')" class="btn-secondary text-gray-800 px-5 py-3 rounded-xl font-medium shadow-lg flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                JSON
+            </button>
+            <button onclick="downloadLatestCBOM('pdf')" class="btn-primary text-white px-5 py-3 rounded-xl font-medium shadow-lg flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                PDF
+            </button>
+        </div>
+    </div>
+
+    <!-- Digital Certificate Modal -->
+    <div id="certModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+        <div class="relative bg-[#FCFBF7] border-4 border-[#D4AF37] rounded-3xl max-w-2xl w-full p-8 shadow-2xl overflow-hidden transition-all transform scale-95" id="certModalContent">
+            <!-- Decorative border lines inside certificate -->
+            <div class="absolute inset-2 border border-[#D4AF37]/40 pointer-events-none rounded-2xl"></div>
+            
+            <button onclick="closeCertificateModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition z-10">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+
+            <div class="text-center relative z-10">
+                <!-- Gold Emblem/Badge -->
+                <div class="mx-auto w-16 h-16 bg-[#D4AF37]/10 rounded-full flex items-center justify-center mb-4 border border-[#D4AF37]/30 shadow-inner">
+                    <svg class="w-9 h-9 text-[#D4AF37]" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/>
+                    </svg>
+                </div>
+
+                <h2 class="text-xl md:text-2xl font-bold text-blue-900 tracking-wide">Q-SHIELD SECURITY COMPLIANCE</h2>
+                <p class="text-xs text-blue-800/80 font-medium tracking-widest uppercase mt-0.5">Post-Quantum Cryptography Readiness Certificate</p>
+                <div class="w-32 h-0.5 bg-[#D4AF37] mx-auto my-4"></div>
+
+                <p class="text-sm text-gray-600">This is to certify that the public-facing endpoint</p>
+                <p class="text-2xl font-bold text-gray-800 font-mono my-2 select-all" id="certModalEndpoint">domain.com</p>
+                <p class="text-sm text-gray-600">has been scanned and validated against post-quantum security criteria.</p>
+
+                <p class="text-xs text-gray-500 uppercase tracking-wider font-semibold mt-4">Compliance Status Label</p>
+                <div class="my-2">
+                    <span id="certModalStatus" class="inline-block px-5 py-2 text-lg font-bold rounded-2xl border text-emerald-800 bg-emerald-50 border-emerald-200">
+                        Post Quantum Cryptography (PQC) Ready
+                    </span>
+                </div>
+
+                <!-- Slogan -->
+                <p class="text-sm font-semibold italic text-blue-900 my-4">
+                    “Quantum-Ready Cybersecurity for Future-Safe Banking”
+                </p>
+
+                <div class="grid grid-cols-2 gap-4 text-left border-t border-b border-gray-200/50 py-4 my-4 max-w-md mx-auto text-xs">
+                    <div>
+                        <span class="text-gray-500">Certified On:</span>
+                        <p class="font-semibold text-gray-800" id="certModalDate">N/A</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Valid Until:</span>
+                        <p class="font-semibold text-gray-800" id="certModalExpiry">N/A</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Certificate Issuer:</span>
+                        <p class="font-semibold text-gray-800" id="certModalIssuer">QShield CA</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Verified Algorithms:</span>
+                        <p class="font-semibold text-gray-800" id="certModalAlgs">N/A</p>
+                    </div>
+                </div>
+
+                <!-- HMAC Signature and Verification status -->
+                <div class="mt-4 text-left max-w-md mx-auto">
+                    <div class="flex items-center justify-between text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1.5 mb-2">
+                        <span class="flex items-center">
+                            <svg class="w-4 h-4 mr-1 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                            </svg>
+                            HMAC Signature Cryptographically Verified
+                        </span>
+                        <span class="text-[9px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-mono">SECURE</span>
+                    </div>
+                    <label class="text-[10px] text-gray-400 font-semibold uppercase tracking-wider block mb-1">Cryptographic Signature Hash</label>
+                    <textarea readonly id="certModalSignature" class="w-full h-12 font-mono text-[10px] text-gray-500 bg-gray-50 p-2 border border-gray-200 rounded-lg resize-none focus:outline-none" onclick="this.select()"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const currentUserRole = "{{ current_user.role }}";
+        const adminRoles = ['admin', 'cyber_lead', 'it_lead', 'security_head'];
+        const isAdminRole = adminRoles.includes(currentUserRole);
+        let latestScanId = null;
+        let latestCbomData = null;
+        let latestCombinedCbom = null;
+
+        const formatIST = (dateString) => {
+            if (!dateString) return 'Never';
+            try {
+                const d = new Date(dateString);
+                if (isNaN(d)) return dateString;
+                const formatter = new Intl.DateTimeFormat('en-IN', {
+                    timeZone: 'Asia/Kolkata',
+                    day: '2-digit', month: '2-digit', year: '2-digit',
+                    hour: '2-digit', minute: '2-digit',
+                    hour12: false
+                });
+                const parts = formatter.formatToParts(d);
+                const vals = {};
+                parts.forEach(p => vals[p.type] = p.value);
+                return `${vals.day}-${vals.month}-${vals.year} ${vals.hour}:${vals.minute} IST`;
+            } catch { return dateString; }
+        };
+
+        function switchInventoryTab(tabName) {
+            document.querySelectorAll('.inventory-tab').forEach(tab => {
+                tab.classList.add('hidden');
+            });
+            document.querySelectorAll('.inventory-tab-btn').forEach(btn => {
+                btn.classList.remove('active', 'border-b-2', 'border-gray-900');
+                btn.classList.add('border-b-2', 'border-transparent', 'text-gray-500');
+            });
+            const selectedTab = document.getElementById(`${tabName}-tab`);
+            if (selectedTab) {
+                selectedTab.classList.remove('hidden');
+            }
+            if (event && event.target) {
+                event.target.classList.remove('border-b-2', 'border-transparent', 'text-gray-500');
+                event.target.classList.add('active', 'border-b-2', 'border-gray-900', 'text-gray-700');
+            }
+        }
+
+        function setStatsFromCbom(cbom) {
+            const summary = (cbom && cbom.summary) ? cbom.summary : {};
+            const totalEndpoints = summary.total_endpoints || 0;
+            const pqcReady = summary.endpoints_pqc_ready || 0;
+            const totalDomains = totalEndpoints || 0;
+            const pqcPercent = totalEndpoints ? Math.round((pqcReady / totalEndpoints) * 100) : 0;
+
+            document.getElementById('totalDomains').textContent = totalDomains;
+            document.getElementById('pqcReady').textContent = `${pqcPercent}%`;
+        }
+
+        function populateAssetInventory(scanResult) {
+            if (!scanResult) {
+                console.warn('No scan result provided for asset inventory');
+                return;
+            }
+
+            const host = scanResult.host || 'Unknown';
+            const port = scanResult.port || 443;
+            const ip = scanResult.ip_address || 'N/A';
+            const tlsVersion = scanResult.tls_version || 'Unknown';
+            const certificate = scanResult.certificate || {};
+            const apiEndpoints = Array.isArray(scanResult.api_endpoints) ? scanResult.api_endpoints : [];
+
+            let cbomEndpoint = null;
+            if (latestCbomData && latestCbomData.endpoints) {
+                const hostKey = `${host}`;
+                const hostPortKey = `${host}:${port}`;
+                cbomEndpoint = latestCbomData.endpoints.find(e => {
+                    const endpointValue = (e.endpoint || '').toString();
+                    return endpointValue === hostKey || endpointValue === hostPortKey || endpointValue.startsWith(`${hostKey}:`);
+                });
+            }
+
+            const domainsTable = document.getElementById('domains-inventory');
+            const apisTable = document.getElementById('api-inventory');
+            const certsTable = document.getElementById('certs-inventory');
+
+            const certSubject = certificate.subject || 'Unknown';
+            const certValidFrom = certificate.valid_from || certificate.not_before || 'N/A';
+            const certValidTo = certificate.valid_to || certificate.not_after || 'N/A';
+            const sigAlgo = certificate.signature_algorithm || 'Unknown';
+            const keySize = certificate.public_key_size || certificate.key_size || 'Unknown';
+            const isPQC = sigAlgo && (sigAlgo.includes('ML-DSA') || sigAlgo.includes('SLH-DSA'));
+
+            let domainsHTML = `
+                <tr class="border-b border-gray-100 hover:bg-gray-50">
+                    <td class="py-3 px-4 font-medium text-gray-900">${host}</td>
+                    <td class="py-3 px-4 text-gray-600">${ip}</td>
+                    <td class="py-3 px-4 text-gray-600">${port}</td>
+                    <td class="py-3 px-4"><span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">${tlsVersion}</span></td>
+                    <td class="py-3 px-4 text-gray-600 text-xs">${certSubject}</td>
+                    <td class="py-3 px-4"><span class="px-2 py-1 ${scanResult.quantum_vulnerable ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'} rounded text-xs font-semibold">${scanResult.quantum_vulnerable ? '⚠ Risk' : '✓ Safe'}</span></td>
+                </tr>
+            `;
+
+            let certsHTML = `
+                <tr class="border-b border-gray-100 hover:bg-gray-50">
+                    <td class="py-3 px-4 font-medium text-gray-900 text-xs">${certSubject}</td>
+                    <td class="py-3 px-4 text-gray-600 text-sm">${certValidFrom}</td>
+                    <td class="py-3 px-4 text-gray-600 text-sm">${certValidTo}</td>
+                    <td class="py-3 px-4"><span class="px-2 py-1 ${isPQC ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'} rounded text-xs font-semibold">${sigAlgo}</span></td>
+                    <td class="py-3 px-4 text-gray-600">${keySize}</td>
+                    <td class="py-3 px-4"><span class="px-2 py-1 ${isPQC ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'} rounded text-xs font-semibold">${isPQC ? '✓ PQC' : 'Classical'}</span></td>
+                </tr>
+            `;
+
+            const cbomApiEndpoints = [];
+            if (cbomEndpoint && Array.isArray(cbomEndpoint.assets)) {
+                cbomEndpoint.assets.forEach(asset => {
+                    if (String(asset.asset_type || '').toLowerCase() === 'api_endpoint') {
+                        const props = asset.properties || {};
+                        cbomApiEndpoints.push({
+                            path: props.path || '',
+                            url: props.url || asset.name || '',
+                            status: props.status,
+                            content_type: props.content_type || '',
+                            is_api: props.is_api,
+                            security_analysis: props.security_analysis || {},
+                        });
+                    }
+                });
+            }
+
+            const combinedApiEndpoints = [...apiEndpoints];
+            const seenApiKeys = new Set(
+                apiEndpoints.map(api => (api.url || api.path || '').toLowerCase()).filter(Boolean)
+            );
+            cbomApiEndpoints.forEach(api => {
+                const key = (api.url || api.path || '').toLowerCase();
+                if (key && !seenApiKeys.has(key)) {
+                    seenApiKeys.add(key);
+                    combinedApiEndpoints.push(api);
+                }
+            });
+
+            let apisHTML = '';
+            const publicIssues = [];
+
+            if (combinedApiEndpoints.length > 0) {
+                combinedApiEndpoints.forEach(api => {
+                    const secAnalysis = api.security_analysis || {};
+                    const corsValue = secAnalysis.cors_enabled;
+                    const authValue = secAnalysis.requires_auth;
+                    const rateValue = secAnalysis.rate_limit_headers;
+
+                    const corsStatus = corsValue === true ? '⚠ Yes' : corsValue === false ? '✓ No' : 'Unknown';
+                    const corsClass = corsValue === true
+                        ? 'bg-red-100 text-red-800'
+                        : corsValue === false
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-600';
+
+                    const authStatus = authValue === true ? '✓ Yes' : authValue === false ? '⚠ No' : 'Unknown';
+                    const authClass = authValue === true
+                        ? 'bg-green-100 text-green-800'
+                        : authValue === false
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-gray-100 text-gray-600';
+
+                    const rateStatus = rateValue === true ? '✓ Yes' : rateValue === false ? 'No' : 'Unknown';
+
+                    let apiPath = api.path || '';
+                    if (!apiPath && api.url) {
+                        try {
+                            apiPath = new URL(api.url).pathname || api.url;
+                        } catch (e) {
+                            apiPath = api.url;
+                        }
+                    }
+
+                    apisHTML += `
+                        <tr class="border-b border-gray-100 hover:bg-gray-50">
+                            <td class="py-3 px-4 font-medium text-gray-900">${host}</td>
+                            <td class="py-3 px-4 font-mono text-sm text-gray-700">${apiPath || '-'}</td>
+                            <td class="py-3 px-4"><span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">${api.status || 'Unknown'}</span></td>
+                            <td class="py-3 px-4"><span class="px-2 py-1 ${corsClass} rounded text-xs font-semibold">${corsStatus}</span></td>
+                            <td class="py-3 px-4"><span class="px-2 py-1 ${authClass} rounded text-xs font-semibold">${authStatus}</span></td>
+                            <td class="py-3 px-4 text-sm">${rateStatus}</td>
+                        </tr>
+                    `;
+
+                    if (secAnalysis.issues && secAnalysis.issues.length > 0) {
+                        publicIssues.push(...secAnalysis.issues.map(issue => `${api.path}: ${issue}`));
+                    }
+                });
+            } else {
+                apisHTML = '<tr><td colspan="6" class="py-8 text-center text-gray-400">No API endpoints discovered</td></tr>';
+            }
+
+            let perimeterHTML = '';
+            let hasPerimeter = false;
+            const perimeterChecks = scanResult.perimeter_checks || {};
+            const vpnChecked = perimeterChecks.vpn_checked_ports || perimeterChecks.vpn_ports || (scanResult.vpn_gateway?.checked_ports || []);
+            const sshChecked = perimeterChecks.ssh_checked_ports || perimeterChecks.ssh_ports || (scanResult.ssh_endpoint?.checked_ports || []);
+
+            if (scanResult.vpn_gateway && scanResult.vpn_gateway.detected) {
+                const vpn = scanResult.vpn_gateway;
+                hasPerimeter = true;
+                perimeterHTML += `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50">
+                        <td class="py-3 px-4 font-medium text-gray-900">${host}</td>
+                        <td class="py-3 px-4"><span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-semibold">VPN Gateway</span></td>
+                        <td class="py-3 px-4 font-mono text-xs">${vpn.vpn_type || 'Unknown'}</td>
+                        <td class="py-3 px-4 text-xs text-gray-600">${vpn.endpoint || ''}</td>
+                        <td class="py-3 px-4"><span class="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs font-semibold">Exposed</span></td>
+                    </tr>
+                `;
+            }
+
+            if (scanResult.ssh_endpoint && scanResult.ssh_endpoint.detected) {
+                const ssh = scanResult.ssh_endpoint;
+                hasPerimeter = true;
+                const pqcKex = (ssh.kex_algorithms || []).some(k => k.includes('sntrup') || k.includes('curve25519')) ? 'Strong KEX' : 'Weak KEX';
+                const sshPortLabel = ssh.port ? `:${ssh.port}` : '';
+                perimeterHTML += `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50">
+                        <td class="py-3 px-4 font-medium text-gray-900">${host}</td>
+                        <td class="py-3 px-4"><span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">SSH Daemon</span></td>
+                        <td class="py-3 px-4 font-mono text-xs">${ssh.banner || 'Unknown SSH'} ${sshPortLabel}</td>
+                        <td class="py-3 px-4 text-xs text-gray-600">${ssh.kex_algorithms ? ssh.kex_algorithms.join(', ') : ''}</td>
+                        <td class="py-3 px-4"><span class="px-2 py-1 ${pqcKex === 'Strong KEX' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} rounded text-xs font-semibold">${pqcKex}</span></td>
+                    </tr>
+                `;
+            }
+
+            if (!hasPerimeter) {
+                const vpnPortsText = vpnChecked.length ? vpnChecked.join(', ') : 'none';
+                const sshPortsText = sshChecked.length ? sshChecked.join(', ') : 'none';
+                perimeterHTML = '<tr><td colspan="5" class="py-6 text-center text-gray-400">No exposure found. Checked VPN ports: ' + vpnPortsText + '; SSH ports: ' + sshPortsText + '.</td></tr>';
+            }
+
+            let qarsHTML = '';
+            if (cbomEndpoint && cbomEndpoint.qars_data) {
+                const q = cbomEndpoint.qars_data;
+                const c = cbomEndpoint.pqc_certificate || {};
+                const certData = c.certificate || {};
+                
+                window.certificatesMap = window.certificatesMap || {};
+                window.certificatesMap[host] = c;
+                
+                const scoreColor = q.qars_score >= 80 ? 'text-green-600' : q.qars_score >= 50 ? 'text-orange-500' : 'text-red-600';
+                let statusColor = 'bg-red-100 text-red-800';
+                if (certData.status && (certData.status.includes('Safe') || certData.status.includes('Ready'))) {
+                    statusColor = 'bg-green-100 text-green-800';
+                }
+
+                qarsHTML += `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50">
+                        <td class="py-3 px-4 font-medium text-gray-900">${host}</td>
+                        <td class="py-3 px-4 text-xl font-bold ${scoreColor}">${q.qars_score}/100</td>
+                        <td class="py-3 px-4 text-sm font-semibold text-red-600">${q.hndl_status || 'Unknown'}</td>
+                        <td class="py-3 px-4">
+                            <span class="px-2 py-1 ${statusColor} rounded text-xs font-semibold">${certData.status || 'UNVERIFIED'}</span>
+                        </td>
+                        <td class="py-3 px-4 flex items-center justify-between">
+                            <span class="font-mono text-xs text-gray-500 max-w-[120px] truncate" title="${c.signature || ''}">${(c.signature || '').substring(0, 12)}...</span>
+                            ${c.signature ? `
+                            <button onclick="showCertificateModal('${host}')" class="text-blue-600 hover:text-blue-800 ml-2 p-1 rounded hover:bg-blue-50 transition" title="View Digital Certificate">
+                                <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                </svg>
+                            </button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `;
+            } else {
+                qarsHTML = '<tr><td colspan="5" class="py-6 text-center text-gray-400">No QARS scoring data for ' + host + '</td></tr>';
+            }
+
+            domainsTable.innerHTML = domainsHTML;
+            certsTable.innerHTML = certsHTML;
+            apisTable.innerHTML = apisHTML;
+            document.getElementById('perimeter-inventory').innerHTML = perimeterHTML;
+            document.getElementById('qars-inventory').innerHTML = qarsHTML;
+
+            const issuesAlert = document.getElementById('api-issues-alert');
+            const issuesList = document.getElementById('issues-list');
+            if (publicIssues.length > 0) {
+                issuesList.innerHTML = publicIssues.map(issue => `<li>• ${issue}</li>`).join('');
+                issuesAlert.classList.remove('hidden');
+            } else {
+                issuesAlert.classList.add('hidden');
+            }
+
+            document.getElementById('totalAPIs').textContent = combinedApiEndpoints.length;
+            document.getElementById('securityIssues').textContent = publicIssues.length;
+        }
+
+        async function refreshHistory() {
+            const historyContainer = document.getElementById('scanHistory');
+            if (!historyContainer) return;
+
+            historyContainer.innerHTML = '<p class="text-gray-400 text-center py-8">Loading scan history...</p>';
+            try {
+                const response = await fetch('/api/history?limit=10');
+                if (!response.ok) {
+                    historyContainer.innerHTML = '<p class="text-gray-500 text-sm">Unable to load scan history.</p>';
+                    return;
+                }
+
+                const data = await response.json();
+                const scans = data.scans || [];
+                if (!scans.length) {
+                    historyContainer.innerHTML = '<p class="text-gray-400 text-center py-8">No scan history yet.</p>';
+                    return;
+                }
+
+                historyContainer.innerHTML = scans.map(scan => `
+                    <div class="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition cursor-pointer" onclick="viewScan('${scan.scan_id}')">
+                        <div class="flex items-center">
+                            <span class="w-2 h-2 rounded-full mr-3 ${scan.status === 'completed' ? 'bg-emerald-400' : 'bg-red-400'}"></span>
+                            <div>
+                                <span class="font-medium text-gray-900">${scan.target}</span>
+                                ${isAdminRole && scan.owner_username ? `<p class="text-xs text-gray-500">Scanned by: ${scan.owner_username}</p>` : ''}
+                                <p class="text-xs text-gray-400">${formatIST(scan.started_at)}</p>
+                            </div>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </div>
+                `).join('');
+            } catch (error) {
+                historyContainer.innerHTML = '<p class="text-gray-500 text-sm">Error while loading scan history.</p>';
+            }
+        }
+
+        async function loadLatestScan() {
+            try {
+                const response = await fetch('/api/history?limit=1');
+                if (!response.ok) {
+                    return;
+                }
+                const data = await response.json();
+                const scan = (data.scans || [])[0];
+                if (scan && scan.scan_id) {
+                    await viewScan(scan.scan_id);
+                }
+            } catch (error) {
+                console.error('Failed to load latest scan:', error);
+            }
+        }
+
+        async function viewScan(scanId) {
+            try {
+                const response = await fetch(`/api/scan/${scanId}`);
+                const scan = await response.json();
+                if (scan.result) {
+                    latestScanId = scanId;
+                    latestCbomData = scan.cbom || null;
+                    latestCombinedCbom = null;
+                    populateAssetInventory(scan.result);
+                    setStatsFromCbom(latestCbomData);
+                    document.getElementById('downloadContainer').classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Failed to load scan:', error);
+            }
+        }
+
+        function downloadLatestCBOM(format = 'json') {
+            if (!latestScanId && !latestCbomData) return;
+
+            if (format === 'json' && latestCbomData) {
+                const blob = new Blob([JSON.stringify(latestCbomData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const target = (latestCbomData.endpoints?.[0]?.endpoint || 'scan').replace(/[^a-zA-Z0-9._-]/g, '_');
+                a.href = url;
+                a.download = `cbom_${target}_${latestScanId || 'latest'}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                return;
+            }
+
+            if (format === 'pdf') {
+                if (!latestScanId) {
+                    alert('PDF download is only available for this session scan. Please run a new scan.');
+                    return;
+                }
+                window.open(`/api/cbom/${latestScanId}/download/pdf`, '_blank');
+            } else {
+                window.open(`/api/cbom/${latestScanId}/download`, '_blank');
+            }
+        }
+
+        function showCertificateModal(host) {
+            const c = window.certificatesMap ? window.certificatesMap[host] : null;
+            if (!c) {
+                alert('No certificate data available for ' + host);
+                return;
+            }
+            
+            const cert = c.certificate || {};
+            
+            document.getElementById('certModalEndpoint').innerText = cert.endpoint || host;
+            
+            // Helper for date formatting
+            const formatCertDate = (dateString) => {
+                if (!dateString) return 'Never';
+                try {
+                    const d = new Date(dateString);
+                    if (isNaN(d)) return dateString; 
+                    const formatter = new Intl.DateTimeFormat('en-IN', {
+                        timeZone: 'Asia/Kolkata',
+                        day: '2-digit', month: '2-digit', year: '2-digit',
+                        hour: '2-digit', minute: '2-digit',
+                        hour12: false
+                    });
+                    const parts = formatter.formatToParts(d);
+                    const vals = {};
+                    parts.forEach(p => vals[p.type] = p.value);
+                    return `${vals.day}-${vals.month}-${vals.year} ${vals.hour}:${vals.minute} IST`;
+                } catch { return dateString; }
+            };
+            
+            document.getElementById('certModalDate').innerText = formatCertDate(cert.certified_at);
+            document.getElementById('certModalExpiry').innerText = formatCertDate(cert.valid_until);
+            document.getElementById('certModalIssuer').innerText = cert.issuer || 'QShield Certificate Authority';
+            
+            // Format algorithms list
+            const algs = cert.algorithms || [];
+            document.getElementById('certModalAlgs').innerText = algs.length > 0 ? algs.join(', ') : 'None (Classical Cryptography Only)';
+            
+            // Format status label and color
+            const statusLabel = document.getElementById('certModalStatus');
+            statusLabel.innerText = cert.status || 'Quantum-Vulnerable';
+            
+            if (cert.status && (cert.status.includes('Safe') || cert.status.includes('Ready'))) {
+                statusLabel.className = 'inline-block px-5 py-2 text-lg font-bold rounded-2xl border text-emerald-800 bg-emerald-50 border-emerald-200';
+            } else {
+                statusLabel.className = 'inline-block px-5 py-2 text-lg font-bold rounded-2xl border text-red-800 bg-red-50 border-red-200';
+            }
+            
+            document.getElementById('certModalSignature').value = c.signature || '';
+            
+            // Open modal
+            const modal = document.getElementById('certModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            setTimeout(() => {
+                const content = document.getElementById('certModalContent');
+                if (content) {
+                    content.classList.remove('scale-95');
+                    content.classList.add('scale-100');
+                }
+            }, 10);
+        }
+
+        function closeCertificateModal() {
+            const modal = document.getElementById('certModal');
+            const content = document.getElementById('certModalContent');
+            if (content) {
+                content.classList.remove('scale-100');
+                content.classList.add('scale-95');
+            }
+            
+            setTimeout(() => {
+                modal.classList.remove('flex');
+                modal.classList.add('hidden');
+            }, 150);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshHistory();
+            const params = new URLSearchParams(window.location.search || '');
+            const scanId = params.get('scan_id');
+            if (scanId) {
+                viewScan(scanId);
+            } else {
+                loadLatestScan();
+            }
+        });
+    </script>
+</body>
+</html>

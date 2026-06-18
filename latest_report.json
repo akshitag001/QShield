@@ -1,0 +1,760 @@
+{
+  "scan_id": "scan_20260618_162007_3146f3",
+  "target": "sc.com",
+  "started_at": "2026-06-18T10:50:07.643990+00:00",
+  "status": "completed",
+  "result": {
+    "host": "sc.com",
+    "ip_address": "107.154.193.30",
+    "port": 443,
+    "tls_version": "TLSv1.3",
+    "tls_versions_supported": [
+      "TLSv1.2",
+      "TLSv1.3"
+    ],
+    "cipher_suites": [
+      {
+        "tls_version": "TLSv1.2",
+        "cipher_suite": "ECDHE-RSA-AES128-GCM-SHA256",
+        "key_exchange": "ECDHE",
+        "authentication": "RSA",
+        "encryption": "AES128-GCM",
+        "hash": "SHA256",
+        "risk_level": "STRONG"
+      },
+      {
+        "tls_version": "TLSv1.3",
+        "cipher_suite": "TLS_AES_128_GCM_SHA256",
+        "key_exchange": "X25519MLKEM768",
+        "authentication": null,
+        "encryption": "AES-128-GCM",
+        "hash": "SHA256"
+      }
+    ],
+    "key_exchange_details": {
+      "algorithm": "X25519MLKEM768",
+      "normalized_algorithm": "X25519MLKEM768",
+      "curve": "X25519MLKEM768",
+      "key_size": null,
+      "ephemeral": true,
+      "pqc": {
+        "detected": true,
+        "algorithm": "X25519MLKEM768",
+        "normalized_algorithm": "X25519MLKEM768",
+        "raw_name": "X25519MLKEM768",
+        "type": "hybrid_kem",
+        "nist_security_level": 3,
+        "is_hybrid": true,
+        "is_pqc": true,
+        "category": "hybrid",
+        "confidence": 0.95,
+        "classical_tokens": [
+          "X25519"
+        ],
+        "pqc_tokens": [
+          "MLKEM"
+        ],
+        "recommendation": "Hybrid: X25519 + MLKEM"
+      },
+      "pqc_status": null,
+      "detection_engine": "python_ssl+ctypes",
+      "universal_analysis": {
+        "raw_name": "X25519MLKEM768",
+        "is_classical": true,
+        "is_pqc": true,
+        "is_hybrid": true,
+        "classical_tokens": [
+          "X25519"
+        ],
+        "pqc_tokens": [
+          "MLKEM"
+        ],
+        "confidence": 0.95,
+        "reason": "Hybrid: X25519 + MLKEM"
+      },
+      "pqc_probe": {
+        "supported": false,
+        "algorithms_detected": [],
+        "hybrid_mode": false,
+        "detection_method": "pqc_binary_unavailable",
+        "available": false,
+        "negotiated_group": null
+      }
+    },
+    "certificate": {
+      "subject": "CN=www.sc.com,O=STANDARD CHARTERED BANK,L=London,C=GB",
+      "issuer": "CN=DigiCert Global G2 TLS RSA SHA256 2020 CA1,O=DigiCert Inc,C=US",
+      "valid_from": "2025-08-01T00:00:00+00:00",
+      "valid_to": "2026-07-31T23:59:59+00:00",
+      "signature_algorithm": "SHA256withRSA",
+      "public_key_algorithm": "RSA",
+      "public_key_size": 2048,
+      "chain_length": null,
+      "san": [
+        "DNS:www.sc.com",
+        "DNS:av.sc.com",
+        "DNS:sc.com",
+        "DNS:retail.sc.com",
+        "DNS:retail.cn.sc.com"
+      ],
+      "serial_number": "F10D8D21A37398CAEFC1A8C23CFD5E5",
+      "version": "v3",
+      "ocsp_responder": "http://ocsp.digicert.com",
+      "issuer_ca_url": "http://cacerts.digicert.com/DigiCertGlobalG2TLSRSASHA2562020CA1-1.crt"
+    },
+    "ocsp": {
+      "status": "GOOD",
+      "checked": true,
+      "responder": "http://ocsp.digicert.com",
+      "latency": 293,
+      "ocsp_status": "GOOD",
+      "ocsp_checked": true,
+      "ocsp_responder": "http://ocsp.digicert.com",
+      "response_time_ms": 293,
+      "stapling": null
+    },
+    "security_features": {
+      "forward_secrecy": true,
+      "weak_ciphers_detected": false,
+      "ocsp_stapling": null,
+      "secure_renegotiation": null,
+      "pqc_support": {
+        "supported": true,
+        "algorithms_detected": [
+          {
+            "detected": true,
+            "algorithm": "X25519MLKEM768",
+            "normalized_algorithm": "X25519MLKEM768",
+            "raw_name": "X25519MLKEM768",
+            "type": "hybrid_kem",
+            "nist_security_level": 3,
+            "is_hybrid": true,
+            "is_pqc": true,
+            "category": "hybrid",
+            "confidence": 0.95,
+            "classical_tokens": [
+              "X25519"
+            ],
+            "pqc_tokens": [
+              "MLKEM"
+            ],
+            "recommendation": "Hybrid: X25519 + MLKEM"
+          }
+        ],
+        "hybrid_mode": true,
+        "detection_method": "raw_sockets_hrr_confirmed",
+        "available": true,
+        "negotiated_group": "X25519MLKEM768",
+        "negotiated_group_raw": "X25519MLKEM768",
+        "negotiated_group_id": "0x11ec",
+        "nist_level": 3
+      }
+    },
+    "hndl_risk": {
+      "level": "LOW",
+      "reason": "No direct RSA key exchange evidence and shorter crypto exposure window",
+      "explanation": "Attackers can record encrypted traffic now and decrypt later when quantum capabilities mature.",
+      "factors": {
+        "rsa_key_exchange_detected": false,
+        "long_term_data_sensitivity": false
+      }
+    },
+    "pqc_detection": {
+      "checks": [
+        {
+          "algorithm": "Kyber / ML-KEM",
+          "check": "TLS handshake",
+          "detected": true,
+          "evidence": "X25519MLKEM768"
+        },
+        {
+          "algorithm": "Dilithium / ML-DSA",
+          "check": "Certificate signature",
+          "detected": false,
+          "evidence": "SHA256withRSA"
+        },
+        {
+          "algorithm": "Falcon",
+          "check": "Certificate signature",
+          "detected": false,
+          "evidence": "SHA256withRSA"
+        },
+        {
+          "algorithm": "SPHINCS+",
+          "check": "Certificate signature",
+          "detected": false,
+          "evidence": "SHA256withRSA"
+        }
+      ],
+      "summary": {
+        "detected_count": 1,
+        "total_checks": 4,
+        "pqc_ready": true
+      },
+      "detection_engines": {
+        "python_ssl": "available",
+        "ctypes_libssl": "available",
+        "raw_sockets": "available",
+        "openssl_cli": "unavailable",
+        "openssl_pqc": "unavailable",
+        "curl": "available",
+        "gnutls_cli": "unavailable"
+      },
+      "detection_method_used": "python_ssl+ctypes"
+    },
+    "crypto_agility_score": {
+      "score": 83,
+      "max_score": 100,
+      "factors": [
+        {
+          "name": "Key algorithm",
+          "weight": 25,
+          "score": 100
+        },
+        {
+          "name": "TLS version",
+          "weight": 20,
+          "score": 85
+        },
+        {
+          "name": "Cipher strength",
+          "weight": 20,
+          "score": 60
+        },
+        {
+          "name": "Key rotation",
+          "weight": 15,
+          "score": 85
+        },
+        {
+          "name": "PQC readiness",
+          "weight": 20,
+          "score": 80
+        }
+      ],
+      "key_exchange_observed": "X25519MLKEM768"
+    },
+    "migration_advisor": {
+      "title": "Recommended Migration Path",
+      "recommendations": [
+        {
+          "current": "Partial PQC capability detected",
+          "future": "Expand to full hybrid KEM + PQC signatures",
+          "category": "Program"
+        },
+        {
+          "current": "RSA 2048",
+          "future": "ML-DSA (Dilithium)",
+          "category": "Certificate Signature"
+        },
+        {
+          "current": "TLS 1.3",
+          "future": "PQC Hybrid TLS",
+          "category": "Transport"
+        }
+      ],
+      "standards_reference": "NIST PQC (ML-KEM, ML-DSA, SLH-DSA)"
+    },
+    "ct_intelligence": {
+      "source": "crt.sh",
+      "query_host": "sc.com",
+      "detected_subdomains": [],
+      "total_detected": 0,
+      "status": "error",
+      "error": "CT lookup failed for 'sc.com' (attempt 1): HTTP Error 502: Bad Gateway"
+    },
+    "cdn_detection": {
+      "detected": [],
+      "details": {
+        "method": "urllib_get",
+        "status": "success",
+        "headers_received": [
+          "content-type",
+          "connection",
+          "date",
+          "last-modified",
+          "etag",
+          "accept-ranges",
+          "content-range",
+          "set-cookie",
+          "strict-transport-security",
+          "x-cdn",
+          "content-security-policy",
+          "x-xss-protection",
+          "x-content-type-options",
+          "x-permitted-cross-domain-policies",
+          "x-frame-options",
+          "referrer-policy",
+          "transfer-encoding",
+          "x-iinfo"
+        ]
+      }
+    },
+    "api_endpoints": [
+      {
+        "path": "/graphql",
+        "url": "https://sc.com/graphql",
+        "status": 403,
+        "content_type": "application/xml",
+        "is_api": true,
+        "security_analysis": {
+          "cors_enabled": false,
+          "cors_allow_origin": null,
+          "cors_allow_credentials": false,
+          "requires_auth": true,
+          "auth_method": "Access Forbidden (likely API key/OAuth)",
+          "rate_limit_headers": false,
+          "security_headers": [],
+          "issues": []
+        }
+      }
+    ],
+    "perimeter_checks": {
+      "vpn_ports": [
+        80,
+        443,
+        8443,
+        10443,
+        1443,
+        9443
+      ],
+      "ssh_ports": [
+        22,
+        2222,
+        2200
+      ],
+      "vpn_checked_ports": [
+        80,
+        443,
+        8443,
+        10443,
+        1443,
+        9443
+      ],
+      "ssh_checked_ports": [
+        22,
+        2222,
+        2200
+      ],
+      "checked_at": "2026-06-18T10:55:30.375807+00:00"
+    }
+  },
+  "cbom": {
+    "cbom_version": "1.0.0",
+    "generated_at": "2026-06-18T10:55:30.378553+00:00",
+    "generator": "Q-Shield TLS Scanner",
+    "endpoints": [
+      {
+        "endpoint": "sc.com:443",
+        "ip_address": "107.154.193.30",
+        "port": 443,
+        "scan_timestamp": "2026-06-18T10:55:30.378570+00:00",
+        "assets": [
+          {
+            "asset_id": "cf6f1e91be131be1",
+            "asset_type": "protocol",
+            "name": "TLSv1.2",
+            "properties": {
+              "version": "TLSv1.2"
+            },
+            "strength": "acceptable",
+            "quantum_vulnerable": false,
+            "source_endpoint": "sc.com:443",
+            "notes": []
+          },
+          {
+            "asset_id": "9381a428218a5c02",
+            "asset_type": "protocol",
+            "name": "TLSv1.3",
+            "properties": {
+              "version": "TLSv1.3"
+            },
+            "strength": "strong",
+            "quantum_vulnerable": false,
+            "source_endpoint": "sc.com:443",
+            "notes": []
+          },
+          {
+            "asset_id": "e252f65f4d249abf",
+            "asset_type": "cipher_suite",
+            "name": "ECDHE-RSA-AES128-GCM-SHA256",
+            "properties": {
+              "tls_version": "TLSv1.2",
+              "key_exchange": "ECDHE",
+              "authentication": "RSA",
+              "encryption": "AES128-GCM",
+              "hash": "SHA256"
+            },
+            "strength": "acceptable",
+            "quantum_vulnerable": true,
+            "source_endpoint": "sc.com:443",
+            "notes": []
+          },
+          {
+            "asset_id": "0b05fb4d17b819df",
+            "asset_type": "key_exchange",
+            "name": "ECDHE",
+            "properties": {
+              "algorithm": "ECDHE",
+              "type": "classical",
+              "is_hybrid": false
+            },
+            "strength": "strong",
+            "quantum_vulnerable": true,
+            "source_endpoint": "sc.com:443",
+            "notes": []
+          },
+          {
+            "asset_id": "bd2e36b090ad7b75",
+            "asset_type": "hash_algorithm",
+            "name": "SHA256",
+            "properties": {
+              "algorithm": "SHA256"
+            },
+            "strength": "strong",
+            "quantum_vulnerable": false,
+            "source_endpoint": "sc.com:443",
+            "notes": []
+          },
+          {
+            "asset_id": "546a8fb853ac71d4",
+            "asset_type": "cipher_suite",
+            "name": "TLS_AES_128_GCM_SHA256",
+            "properties": {
+              "tls_version": "TLSv1.3",
+              "key_exchange": "X25519MLKEM768",
+              "authentication": null,
+              "encryption": "AES-128-GCM",
+              "hash": "SHA256"
+            },
+            "strength": "acceptable",
+            "quantum_vulnerable": true,
+            "source_endpoint": "sc.com:443",
+            "notes": []
+          },
+          {
+            "asset_id": "315d74a6eecdeb9c",
+            "asset_type": "hybrid_key_exchange",
+            "name": "X25519MLKEM768",
+            "properties": {
+              "algorithm": "X25519MLKEM768",
+              "type": "hybrid_pqc",
+              "is_hybrid": true
+            },
+            "strength": "strong",
+            "quantum_vulnerable": false,
+            "source_endpoint": "sc.com:443",
+            "notes": [
+              "Hybrid key exchange: X25519MLKEM768"
+            ]
+          },
+          {
+            "asset_id": "bcec10e64ee2b458",
+            "asset_type": "certificate",
+            "name": "CN=www.sc.com,O=STANDARD CHARTERED BANK,L=London,C=GB",
+            "properties": {
+              "subject": "CN=www.sc.com,O=STANDARD CHARTERED BANK,L=London,C=GB",
+              "issuer": "CN=DigiCert Global G2 TLS RSA SHA256 2020 CA1,O=DigiCert Inc,C=US",
+              "valid_from": "2025-08-01T00:00:00+00:00",
+              "valid_to": "2026-07-31T23:59:59+00:00",
+              "signature_algorithm": "SHA256withRSA",
+              "public_key_algorithm": "RSA",
+              "public_key_size": 2048,
+              "chain_length": null,
+              "san": [
+                "DNS:www.sc.com",
+                "DNS:av.sc.com",
+                "DNS:sc.com",
+                "DNS:retail.sc.com",
+                "DNS:retail.cn.sc.com"
+              ],
+              "serial_number": "F10D8D21A37398CAEFC1A8C23CFD5E5"
+            },
+            "strength": "strong",
+            "quantum_vulnerable": true,
+            "source_endpoint": "sc.com:443",
+            "notes": []
+          },
+          {
+            "asset_id": "93b310bf34f77f02",
+            "asset_type": "public_key",
+            "name": "RSA 2048-bit",
+            "properties": {
+              "algorithm": "RSA",
+              "key_size": 2048
+            },
+            "strength": "strong",
+            "quantum_vulnerable": true,
+            "source_endpoint": "sc.com:443",
+            "notes": []
+          },
+          {
+            "asset_id": "3bdc242dccf5c142",
+            "asset_type": "hybrid_key_exchange",
+            "name": "X25519MLKEM768",
+            "properties": {
+              "algorithm": "X25519MLKEM768",
+              "raw_name": "X25519MLKEM768",
+              "type": "hybrid_kem",
+              "nist_security_level": 3,
+              "is_hybrid": true,
+              "classical_component": null
+            },
+            "strength": "strong",
+            "quantum_vulnerable": false,
+            "source_endpoint": "sc.com:443",
+            "notes": [
+              "Post-Quantum Cryptography - Quantum Safe",
+              "Hybrid mode with classical component"
+            ]
+          },
+          {
+            "asset_id": "18ee1d62d5fefedc",
+            "asset_type": "hybrid_key_exchange",
+            "name": "X25519MLKEM768",
+            "properties": {
+              "algorithm": "X25519MLKEM768",
+              "raw_name": "X25519MLKEM768",
+              "normalized_algorithm": "X25519MLKEM768",
+              "nist_security_level": 3,
+              "is_hybrid": true,
+              "classical_component": null
+            },
+            "strength": "strong",
+            "quantum_vulnerable": false,
+            "source_endpoint": "sc.com:443",
+            "notes": [
+              "Negotiated PQC key exchange"
+            ]
+          },
+          {
+            "asset_id": "c2fab535c0843f2a",
+            "asset_type": "api_endpoint",
+            "name": "https://sc.com/graphql",
+            "properties": {
+              "path": "/graphql",
+              "url": "https://sc.com/graphql",
+              "status": 403,
+              "content_type": "application/xml",
+              "is_api": true,
+              "security_analysis": {
+                "cors_enabled": false,
+                "cors_allow_origin": null,
+                "cors_allow_credentials": false,
+                "requires_auth": true,
+                "auth_method": "Access Forbidden (likely API key/OAuth)",
+                "rate_limit_headers": false,
+                "security_headers": [],
+                "issues": []
+              }
+            },
+            "strength": "unknown",
+            "quantum_vulnerable": false,
+            "source_endpoint": "sc.com:443",
+            "notes": [
+              "Detected API endpoint"
+            ]
+          }
+        ],
+        "tls_versions": [
+          "TLSv1.2",
+          "TLSv1.3"
+        ],
+        "forward_secrecy": true,
+        "weak_crypto_detected": false,
+        "pqc_ready": true,
+        "qars_data": {
+          "qars_score": 93.3,
+          "risk_level": "LOW",
+          "hndl_status": "ACT NOW (Harvest Now Decrypt Later risk)",
+          "data_tier": "transaction",
+          "rubric": {
+            "weights": {
+              "vulnerable_assets": 40.0,
+              "weak_assets": 10.0,
+              "weak_endpoints": 20.0,
+              "pqc_ready": 15.0,
+              "forward_secrecy": 5.0,
+              "hndl_act_now": 10.0
+            },
+            "inputs": {
+              "vulnerable_assets": 5,
+              "total_assets": 12,
+              "weak_assets": 0,
+              "weak_endpoints": 0,
+              "total_endpoints": 1,
+              "pqc_ready_endpoints": 1,
+              "forward_secrecy_endpoints": 1
+            },
+            "ratios": {
+              "vulnerable_assets_ratio": 0.4167,
+              "weak_assets_ratio": 0.0,
+              "weak_endpoints_ratio": 0.0,
+              "pqc_ready_ratio": 1.0,
+              "forward_secrecy_ratio": 1.0
+            },
+            "penalties": {
+              "vulnerable_assets": 16.67,
+              "weak_assets": 0.0,
+              "weak_endpoints": 0.0,
+              "hndl_act_now": 10.0
+            },
+            "bonuses": {
+              "pqc_ready": 15.0,
+              "forward_secrecy": 5.0
+            }
+          }
+        },
+        "pqc_certificate": {
+          "certificate": {
+            "endpoint": "sc.com:443",
+            "status": "PQC_READY",
+            "certified_at": "2026-06-18T10:55:30.381167+00:00",
+            "issuer": "QShield Certificate Authority",
+            "valid_until": "2027-01-01T00:00:00Z"
+          },
+          "signature": "9202dc9cbf9e29d15aae7f64c2e62c9acf20419fc525e394625aa10ba8d25c98"
+        },
+        "perimeter_checks": {
+          "vpn_ports": [
+            80,
+            443,
+            8443,
+            10443,
+            1443,
+            9443
+          ],
+          "ssh_ports": [
+            22,
+            2222,
+            2200
+          ],
+          "vpn_checked_ports": [
+            80,
+            443,
+            8443,
+            10443,
+            1443,
+            9443
+          ],
+          "ssh_checked_ports": [
+            22,
+            2222,
+            2200
+          ],
+          "checked_at": "2026-06-18T10:55:30.375807+00:00"
+        },
+        "perimeter_findings": []
+      }
+    ],
+    "summary": {
+      "total_endpoints": 1,
+      "total_assets": 12,
+      "assets_by_type": {
+        "protocol": 2,
+        "cipher_suite": 2,
+        "key_exchange": 1,
+        "hash_algorithm": 1,
+        "hybrid_key_exchange": 3,
+        "certificate": 1,
+        "public_key": 1,
+        "api_endpoint": 1
+      },
+      "assets_by_strength": {
+        "acceptable": 3,
+        "strong": 8,
+        "unknown": 1
+      },
+      "quantum_vulnerable_assets": 5,
+      "quantum_safe_assets": 7,
+      "pqc_assets": 3,
+      "endpoints_with_weak_crypto": 0,
+      "endpoints_with_forward_secrecy": 1,
+      "endpoints_pqc_ready": 1,
+      "qars_data": {
+        "qars_score": 93.3,
+        "risk_level": "LOW",
+        "hndl_status": "ACT NOW (Harvest Now Decrypt Later risk)",
+        "data_tier": "transaction",
+        "rubric": {
+          "weights": {
+            "vulnerable_assets": 40.0,
+            "weak_assets": 10.0,
+            "weak_endpoints": 20.0,
+            "pqc_ready": 15.0,
+            "forward_secrecy": 5.0,
+            "hndl_act_now": 10.0
+          },
+          "inputs": {
+            "vulnerable_assets": 5,
+            "total_assets": 12,
+            "weak_assets": 0,
+            "weak_endpoints": 0,
+            "total_endpoints": 1,
+            "pqc_ready_endpoints": 1,
+            "forward_secrecy_endpoints": 1
+          },
+          "ratios": {
+            "vulnerable_assets_ratio": 0.4167,
+            "weak_assets_ratio": 0.0,
+            "weak_endpoints_ratio": 0.0,
+            "pqc_ready_ratio": 1.0,
+            "forward_secrecy_ratio": 1.0
+          },
+          "penalties": {
+            "vulnerable_assets": 16.67,
+            "weak_assets": 0.0,
+            "weak_endpoints": 0.0,
+            "hndl_act_now": 10.0
+          },
+          "bonuses": {
+            "pqc_ready": 15.0,
+            "forward_secrecy": 5.0
+          }
+        }
+      }
+    }
+  },
+  "vulnerabilities": {
+    "scan_id": "scan_20260618_162007_3146f3",
+    "target": "sc.com",
+    "total_vulnerabilities": 5,
+    "vulnerabilities": [
+      {
+        "asset_type": "cipher_suite",
+        "name": "ECDHE-RSA-AES128-GCM-SHA256",
+        "reason": "Cipher suite uses classical key exchange vulnerable to quantum attacks",
+        "risk_level": "MEDIUM",
+        "recommendation": "Prefer TLS 1.3 cipher suites with PQC key exchange when available"
+      },
+      {
+        "asset_type": "key_exchange",
+        "name": "ECDHE",
+        "reason": "ECDH key exchange uses elliptic curve Diffie-Hellman, vulnerable to quantum attacks",
+        "risk_level": "HIGH",
+        "recommendation": "Enable ML-KEM (Kyber) or hybrid X25519+ML-KEM key exchange"
+      },
+      {
+        "asset_type": "cipher_suite",
+        "name": "TLS_AES_128_GCM_SHA256",
+        "reason": "Uses classical cryptography vulnerable to quantum computing attacks",
+        "risk_level": "MEDIUM",
+        "recommendation": "Prefer TLS 1.3 cipher suites with PQC key exchange when available"
+      },
+      {
+        "asset_type": "certificate",
+        "name": "CN=www.sc.com,O=STANDARD CHARTERED BANK,L=London,C=GB",
+        "reason": "Certificate uses RSA signature, forgeable with quantum computer",
+        "risk_level": "HIGH",
+        "recommendation": "Request PQC-signed certificate from CA when available"
+      },
+      {
+        "asset_type": "public_key",
+        "name": "RSA 2048-bit",
+        "reason": "RSA-2048 can be broken by Shor's algorithm on a quantum computer",
+        "risk_level": "HIGH",
+        "recommendation": "Migrate to ML-DSA (Dilithium) or hybrid RSA+ML-DSA certificate"
+      }
+    ]
+  }
+}

@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Q-Shield | Third-Party Vendors</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --q-bg-a: #f8f8fa;
+            --q-bg-b: #f2f3f7;
+            --q-panel: rgba(255, 255, 255, 0.9);
+            --q-border: rgba(15, 23, 42, 0.08);
+            --q-text: #12131a;
+        }
+
+        body {
+            background: linear-gradient(180deg, var(--q-bg-a) 0%, var(--q-bg-b) 100%);
+            min-height: 100vh;
+            color: var(--q-text);
+            position: relative;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(500px 300px at 90% 20%, rgba(244, 114, 182, 0.12), transparent 70%),
+                radial-gradient(500px 300px at 8% 0%, rgba(148, 163, 184, 0.12), transparent 70%);
+            opacity: 0.65;
+        }
+
+        .glass-card {
+            background: var(--q-panel);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--q-border);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .btn-primary {
+            background: #111827;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: #0b1220;
+        }
+
+        .btn-secondary {
+            background: #fff;
+            border: 1px solid rgba(17, 24, 39, 0.14);
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            border-color: rgba(17, 24, 39, 0.24);
+        }
+
+        details.nav-dropdown > summary {
+            list-style: none;
+        }
+
+        details.nav-dropdown > summary::-webkit-details-marker {
+            display: none;
+        }
+    </style>
+</head>
+<body class="font-sans text-gray-900">
+    <nav class="sticky top-0 z-30 backdrop-blur-sm bg-white/70 border-b border-gray-200/70">
+        <div class="max-w-7xl mx-auto px-6 py-4">
+            <div class="glass-card rounded-2xl px-5 py-3 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 bg-gray-900 rounded-xl flex items-center justify-center shadow-sm">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                    </div>
+                    <span class="text-xl font-semibold text-gray-900">Q-Shield</span>
+                    <span class="hidden lg:inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200">
+                        Quantum-Ready Cybersecurity for Future-Safe Banking
+                    </span>
+                </div>
+                <div class="hidden md:flex items-center space-x-8 text-sm font-medium text-gray-500">
+                    <details class="nav-dropdown relative">
+                        <summary class="cursor-pointer hover:text-gray-900 transition">Scanner ▾</summary>
+                        <div class="absolute top-full left-0 mt-2 w-44 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-50">
+                            <a href="/#scanner" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Main Scanner</a>
+                            <a href="/vendors" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Vendor Scanner</a>
+                        </div>
+                    </details>
+                    <a href="/asset-inventory" class="hover:text-gray-900 transition">Asset Inventory</a>
+                    <a href="/#results" class="hover:text-gray-900 transition">Results</a>
+                    <a href="/history" class="hover:text-gray-900 transition">History</a>
+                    <a href="/scheduled-reporting" class="hover:text-gray-900 transition">Scheduled Reports</a>
+                    <a href="/learn" class="hover:text-gray-900 transition">Learn</a>
+                    {% if current_user.role in ['admin', 'cyber_lead', 'it_lead', 'security_head'] %}
+                    <a href="/logs" class="hover:text-gray-900 transition">Logs</a>
+                    {% endif %}
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="hidden sm:inline text-xs text-gray-500 px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200">
+                        {{ current_user.username }} ({{ current_user.role }})
+                    </span>
+                    <a href="/" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Dashboard</a>
+                    <a href="/logout" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <section class="relative z-10 py-12 pb-24">
+        <div class="max-w-7xl mx-auto px-6 space-y-6">
+            <div class="glass-card rounded-3xl p-8">
+                <h1 class="text-2xl font-semibold text-gray-900 mb-2">Third-Party Vendor Inventory</h1>
+                <p class="text-sm text-gray-600">Add your known vendors and scan them in one clean workflow.</p>
+                <p id="vendorStatus" class="text-sm mt-3 text-gray-600"></p>
+            </div>
+
+            <div class="glass-card rounded-3xl p-8">
+                <h2 class="text-lg font-semibold text-gray-900 mb-5">Add Vendor</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm text-gray-700 font-medium">Vendor Name</label>
+                        <input id="vendorNameInput" type="text" placeholder="Cloudflare" class="mt-1 w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-200">
+                    </div>
+                    <div>
+                        <label class="text-sm text-gray-700 font-medium">Domain</label>
+                        <input id="vendorDomainInput" type="text" placeholder="api.vendor.com" class="mt-1 w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-200">
+                    </div>
+                    <div>
+                        <label class="text-sm text-gray-700 font-medium">Criticality</label>
+                        <select id="vendorCriticalityInput" class="mt-1 w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-200">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-sm text-gray-700 font-medium">Enabled</label>
+                        <div class="mt-2">
+                            <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+                                <input id="vendorEnabledInput" type="checkbox" checked>
+                                Include in vendor scan workflow
+                            </label>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-sm text-gray-700 font-medium">Notes (optional)</label>
+                        <textarea id="vendorNotesInput" rows="2" placeholder="Payment processor, identity provider, CDN, etc." class="mt-1 w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"></textarea>
+                    </div>
+                </div>
+                <div class="mt-5">
+                    <button onclick="createVendor()" class="btn-primary text-white px-5 py-2.5 rounded-xl text-sm font-medium">Add Vendor</button>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-3xl p-8">
+                <div class="flex items-center justify-between mb-5">
+                    <h2 class="text-lg font-semibold text-gray-900">Vendor List</h2>
+                    <div class="flex items-center gap-2">
+                        <button onclick="loadVendors()" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Refresh</button>
+                        <button onclick="scanSelectedVendors()" class="btn-primary text-white px-4 py-2 rounded-xl text-sm font-medium">Scan Selected</button>
+                    </div>
+                </div>
+                <div id="vendorsList" class="space-y-3">
+                    <p class="text-sm text-gray-500">Loading vendors...</p>
+                </div>
+                <div id="vendorScanSummary" class="mt-5"></div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        const formatIST = (dateString) => {
+            if (!dateString) return 'Never';
+            try {
+                const d = new Date(dateString);
+                if (isNaN(d)) return dateString; 
+                
+                const formatter = new Intl.DateTimeFormat('en-IN', {
+                    timeZone: 'Asia/Kolkata',
+                    day: '2-digit', month: '2-digit', year: '2-digit',
+                    hour: '2-digit', minute: '2-digit',
+                    hour12: false
+                });
+                
+                const parts = formatter.formatToParts(d);
+                const vals = {};
+                parts.forEach(p => vals[p.type] = p.value);
+                
+                return `${vals.day}-${vals.month}-${vals.year} ${vals.hour}:${vals.minute} IST`;
+            } catch { return dateString; }
+        };
+
+        let vendorItems = [];
+
+        function humanizeVendorError(message) {
+            const text = String(message || '').trim();
+            const lowered = text.toLowerCase();
+
+            if (
+                lowered.includes('getaddrinfo failed') ||
+                lowered.includes('name or service not known') ||
+                lowered.includes('domain could not be resolved') ||
+                lowered.includes('invalid target')
+            ) {
+                return 'Invalid or unresolvable domain. Use a valid hostname like example.com or rru.ac.in';
+            }
+
+            return text || 'Request failed';
+        }
+
+        function renderVendors(items) {
+            const list = document.getElementById('vendorsList');
+            if (!items.length) {
+                list.innerHTML = '<p class="text-sm text-gray-500">No vendors added yet.</p>';
+                return;
+            }
+
+            const tone = {
+                critical: 'bg-red-50 text-red-700 border border-red-200',
+                high: 'bg-orange-50 text-orange-700 border border-orange-200',
+                medium: 'bg-amber-50 text-amber-700 border border-amber-200',
+                low: 'bg-gray-100 text-gray-700 border border-gray-200',
+            };
+
+            list.innerHTML = items.map(item => `
+                <div class="bg-white border border-gray-200 rounded-xl p-4">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex items-start gap-3 min-w-0">
+                            <input type="checkbox" class="vendor-select mt-1" value="${item.vendor_id}" ${item.enabled ? 'checked' : ''}>
+                            <div class="space-y-1 text-sm min-w-0">
+                                <p class="text-gray-900 font-medium">${item.vendor_name}</p>
+                                <p class="text-gray-600 break-all">${item.domain}</p>
+                                <p class="text-gray-500 text-xs">Last scan: ${formatIST(item.last_scan_at)}</p>
+                                ${item.notes ? `<p class="text-gray-500 text-xs">${item.notes}</p>` : ''}
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 rounded-full text-xs ${tone[item.criticality] || tone.medium}">${item.criticality}</span>
+                            <span class="px-2 py-0.5 rounded-full text-xs ${item.enabled ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-600 border border-gray-200'}">${item.enabled ? 'Enabled' : 'Disabled'}</span>
+                            <button onclick="toggleVendor('${item.vendor_id}', ${item.enabled ? 'false' : 'true'})" class="btn-secondary text-gray-800 px-3 py-1.5 rounded-lg text-xs font-medium">${item.enabled ? 'Disable' : 'Enable'}</button>
+                            <button onclick="deleteVendor('${item.vendor_id}')" class="btn-secondary text-red-600 px-3 py-1.5 rounded-lg text-xs font-medium">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function loadVendors() {
+            const list = document.getElementById('vendorsList');
+            list.innerHTML = '<p class="text-sm text-gray-500">Loading vendors...</p>';
+            try {
+                const response = await fetch('/api/vendors');
+                const data = await response.json();
+                if (!response.ok) {
+                    list.innerHTML = `<p class="text-sm text-red-600">Failed to load vendors: ${humanizeVendorError(data.detail || 'Unknown error')}</p>`;
+                    return;
+                }
+                vendorItems = data.items || [];
+                renderVendors(vendorItems);
+            } catch (error) {
+                list.innerHTML = `<p class="text-sm text-red-600">Failed to load vendors: ${humanizeVendorError(error.message)}</p>`;
+            }
+        }
+
+        async function createVendor() {
+            const status = document.getElementById('vendorStatus');
+            const payload = {
+                vendor_name: document.getElementById('vendorNameInput').value.trim(),
+                domain: document.getElementById('vendorDomainInput').value.trim(),
+                criticality: document.getElementById('vendorCriticalityInput').value,
+                notes: document.getElementById('vendorNotesInput').value.trim() || null,
+                enabled: document.getElementById('vendorEnabledInput').checked,
+            };
+
+            if (!payload.vendor_name || !payload.domain) {
+                status.textContent = 'Vendor name and domain are required.';
+                status.className = 'text-sm mt-3 text-red-600';
+                return;
+            }
+
+            status.textContent = 'Adding vendor...';
+            status.className = 'text-sm mt-3 text-gray-600';
+
+            try {
+                const response = await fetch('/api/vendors', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    status.textContent = `Failed to add vendor: ${humanizeVendorError(data.detail || 'Unknown error')}`;
+                    status.className = 'text-sm mt-3 text-red-600';
+                    return;
+                }
+
+                status.textContent = `Vendor added: ${data.vendor_name}`;
+                status.className = 'text-sm mt-3 text-emerald-700';
+                document.getElementById('vendorNameInput').value = '';
+                document.getElementById('vendorDomainInput').value = '';
+                document.getElementById('vendorNotesInput').value = '';
+                document.getElementById('vendorCriticalityInput').value = 'medium';
+                document.getElementById('vendorEnabledInput').checked = true;
+                loadVendors();
+            } catch (error) {
+                status.textContent = `Failed to add vendor: ${humanizeVendorError(error.message)}`;
+                status.className = 'text-sm mt-3 text-red-600';
+            }
+        }
+
+        async function toggleVendor(vendorId, enabled) {
+            try {
+                const response = await fetch(`/api/vendors/${vendorId}/enabled`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled }),
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    alert(`Failed to update vendor: ${humanizeVendorError(data.detail || 'Unknown error')}`);
+                    return;
+                }
+                loadVendors();
+            } catch (error) {
+                alert(`Failed to update vendor: ${humanizeVendorError(error.message)}`);
+            }
+        }
+
+        async function deleteVendor(vendorId) {
+            if (!confirm('Delete this vendor?')) return;
+            try {
+                const response = await fetch(`/api/vendors/${vendorId}`, { method: 'DELETE' });
+                const data = await response.json();
+                if (!response.ok) {
+                    alert(`Failed to delete vendor: ${humanizeVendorError(data.detail || 'Unknown error')}`);
+                    return;
+                }
+                loadVendors();
+            } catch (error) {
+                alert(`Failed to delete vendor: ${humanizeVendorError(error.message)}`);
+            }
+        }
+
+        function selectedVendorIds() {
+            const ids = [];
+            document.querySelectorAll('.vendor-select:checked').forEach(node => ids.push(node.value));
+            return ids;
+        }
+
+        async function scanSelectedVendors() {
+            const ids = selectedVendorIds();
+            const summary = document.getElementById('vendorScanSummary');
+            if (!ids.length) {
+                summary.innerHTML = '<p class="text-sm text-amber-700">Select at least one vendor to scan.</p>';
+                return;
+            }
+
+            summary.innerHTML = '<p class="text-sm text-gray-600">Running vendor scan...</p>';
+            try {
+                const response = await fetch('/api/vendors/scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vendor_ids: ids, timeout: 15 }),
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    summary.innerHTML = `<p class="text-sm text-red-600">Vendor scan failed: ${humanizeVendorError(data.detail || 'Unknown error')}</p>`;
+                    return;
+                }
+
+                const rows = (data.items || []).map(item => `
+                    <tr class="border-b border-gray-100">
+                        <td class="py-2 text-sm text-gray-900">${item.vendor_name}</td>
+                        <td class="py-2 text-sm text-gray-600">${item.domain}</td>
+                        <td class="py-2 text-sm ${item.status === 'completed' ? 'text-emerald-700' : 'text-red-600'}">${item.status}</td>
+                        <td class="py-2 text-sm text-gray-600">${item.vulnerabilities ?? '-'}</td>
+                    </tr>
+                `).join('');
+
+                summary.innerHTML = `
+                    <div class="mt-5 bg-white border border-gray-200 rounded-xl p-4">
+                        <p class="text-sm text-gray-700 mb-3">Selected: ${data.total_selected} | Success: ${data.successful_scans} | Failed: ${data.failed_scans}</p>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="text-left text-xs text-gray-500 border-b border-gray-200">
+                                        <th class="pb-2 font-medium">Vendor</th>
+                                        <th class="pb-2 font-medium">Domain</th>
+                                        <th class="pb-2 font-medium">Status</th>
+                                        <th class="pb-2 font-medium">Vulnerabilities</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rows}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                loadVendors();
+            } catch (error) {
+                summary.innerHTML = `<p class="text-sm text-red-600">Vendor scan failed: ${humanizeVendorError(error.message)}</p>`;
+            }
+        }
+
+        loadVendors();
+    </script>
+</body>
+</html>

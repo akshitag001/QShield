@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "buildCommand": "apt-get update && apt-get install -y openssl libssl-dev",
+  "builds": [
+    {
+      "src": "app.py",
+      "use": "@vercel/python",
+      "config": {
+        "includeFiles": [
+          "templates/**",
+          "static/**"
+        ]
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "app.py"
+    }
+  ]
+}

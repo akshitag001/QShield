@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Q-Shield | Audit Logs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --q-bg-a: #f8f8fa;
+            --q-bg-b: #f2f3f7;
+            --q-panel: rgba(255, 255, 255, 0.9);
+            --q-border: rgba(15, 23, 42, 0.08);
+            --q-text: #12131a;
+        }
+
+        body {
+            background: linear-gradient(180deg, var(--q-bg-a) 0%, var(--q-bg-b) 100%);
+            min-height: 100vh;
+            color: var(--q-text);
+            position: relative;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(500px 300px at 90% 20%, rgba(244, 114, 182, 0.12), transparent 70%),
+                radial-gradient(500px 300px at 8% 0%, rgba(148, 163, 184, 0.12), transparent 70%);
+            opacity: 0.65;
+        }
+
+        .glass-card {
+            background: var(--q-panel);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--q-border);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .btn-primary {
+            background: #111827;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: #0b1220;
+        }
+
+        .btn-secondary {
+            background: #fff;
+            border: 1px solid rgba(17, 24, 39, 0.14);
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            border-color: rgba(17, 24, 39, 0.24);
+        }
+
+        details.nav-dropdown > summary {
+            list-style: none;
+        }
+
+        details.nav-dropdown > summary::-webkit-details-marker {
+            display: none;
+        }
+    </style>
+</head>
+<body class="font-sans text-gray-900">
+
+    <nav class="sticky top-0 z-30 backdrop-blur-sm bg-white/70 border-b border-gray-200/70">
+        <div class="max-w-7xl mx-auto px-6 py-4">
+            <div class="glass-card rounded-2xl px-5 py-3 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 bg-gray-900 rounded-xl flex items-center justify-center shadow-sm">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                    </div>
+                    <span class="text-xl font-semibold text-gray-900">Q-Shield</span>
+                    <span class="hidden lg:inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200">
+                        Quantum-Ready Cybersecurity for Future-Safe Banking
+                    </span>
+                </div>
+                <div class="hidden md:flex items-center space-x-8 text-sm font-medium text-gray-500">
+                    <details class="nav-dropdown relative">
+                        <summary class="cursor-pointer hover:text-gray-900 transition">Scanner ▾</summary>
+                        <div class="absolute top-full left-0 mt-2 w-44 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-50">
+                            <a href="/#scanner" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Main Scanner</a>
+                            <a href="/vendors" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Vendor Scanner</a>
+                        </div>
+                    </details>
+                    <a href="/asset-inventory" class="hover:text-gray-900 transition">Asset Inventory</a>
+                    <a href="/#results" class="hover:text-gray-900 transition">Results</a>
+                    <a href="/history" class="hover:text-gray-900 transition">History</a>
+                    <a href="/scheduled-reporting" class="hover:text-gray-900 transition">Scheduled Reports</a>
+                    <a href="/learn" class="hover:text-gray-900 transition">Learn</a>
+                    <a href="/logs" class="text-gray-900">Logs</a>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="hidden sm:inline text-xs text-gray-500 px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200">
+                        {{ current_user.username }} ({{ current_user.role }})
+                    </span>
+                    <a href="/" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Dashboard</a>
+                    <a href="/logout" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <section class="relative z-10 py-12 pb-24">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="glass-card rounded-3xl p-8">
+                <div class="flex items-center justify-between mb-6">
+                    <h1 class="text-2xl font-semibold text-gray-900">Audit Logs</h1>
+                    <div class="flex gap-3">
+                        <button onclick="loadLogs()" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Refresh</button>
+                        <button onclick="clearLogs()" class="btn-secondary text-red-600 px-4 py-2 rounded-xl text-sm font-medium">Clear Logs</button>
+                    </div>
+                </div>
+                <p id="logsStatus" class="text-sm text-gray-500 mb-4">Loading logs...</p>
+                <div id="logsList" class="space-y-3">
+                    <p class="text-gray-400 text-center py-8">Loading audit logs...</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        const formatIST = (dateString) => {
+            if (!dateString) return 'Never';
+            try {
+                const d = new Date(dateString);
+                if (isNaN(d)) return dateString; 
+                
+                const formatter = new Intl.DateTimeFormat('en-IN', {
+                    timeZone: 'Asia/Kolkata',
+                    day: '2-digit', month: '2-digit', year: '2-digit',
+                    hour: '2-digit', minute: '2-digit',
+                    hour12: false
+                });
+                
+                const parts = formatter.formatToParts(d);
+                const vals = {};
+                parts.forEach(p => vals[p.type] = p.value);
+                
+                return `${vals.day}-${vals.month}-${vals.year} ${vals.hour}:${vals.minute} IST`;
+            } catch { return dateString; }
+        };
+
+        async function loadLogs() {
+            const list = document.getElementById('logsList');
+            const status = document.getElementById('logsStatus');
+
+            try {
+                const response = await fetch('/api/admin/logs?limit=200');
+                if (!response.ok) {
+                    list.innerHTML = '<p class="text-gray-500 text-sm">Unable to load audit logs.</p>';
+                    status.textContent = 'Failed to load logs.';
+                    return;
+                }
+
+                const data = await response.json();
+                const logs = data.logs || [];
+                status.textContent = `Showing ${logs.length} logs`;
+
+                if (!logs.length) {
+                    list.innerHTML = '<p class="text-gray-400 text-center py-8">No logs found.</p>';
+                    return;
+                }
+
+                list.innerHTML = logs.map(log => `
+                    <div class="flex items-start justify-between p-4 bg-white border border-gray-200 rounded-xl">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">${log.username} (${log.role}) — ${log.action}</p>
+                            <p class="text-xs text-gray-500 mt-1">${log.resource_type || '-'} ${log.resource_id || ''} ${log.target ? `| Target: ${log.target}` : ''}</p>
+                            <p class="text-xs text-gray-400 mt-1">${log.details ? JSON.stringify(log.details) : ''}</p>
+                        </div>
+                        <p class="text-xs text-gray-400">${formatIST(log.created_at)}</p>
+                    </div>
+                `).join('');
+            } catch (error) {
+                list.innerHTML = '<p class="text-gray-500 text-sm">Error while loading logs.</p>';
+                status.textContent = 'Error while loading logs.';
+            }
+        }
+
+        async function clearLogs() {
+            if (!confirm('Clear all audit logs?')) {
+                return;
+            }
+
+            const status = document.getElementById('logsStatus');
+            try {
+                const response = await fetch('/api/admin/logs/clear', { method: 'DELETE' });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    alert('Failed to clear logs: ' + (data.detail || 'Unknown error'));
+                    return;
+                }
+
+                status.textContent = data.message || 'Logs cleared.';
+                await loadLogs();
+            } catch (error) {
+                alert('Error clearing logs: ' + error.message);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadLogs);
+    </script>
+</body>
+</html>

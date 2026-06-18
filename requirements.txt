@@ -1,0 +1,19 @@
+cryptography>=41.0.0
+fastapi>=0.110.0
+jinja2>=3.1.0
+itsdangerous>=2.1.0
+python-multipart>=0.0.9
+reportlab>=4.0.0
+xhtml2pdf>=0.2.16
+sqlalchemy>=2.0.0
+uvicorn>=0.29.0
+
+# Security hardening (CRITICAL)
+argon2-cffi>=23.0.0
+slowapi>=0.1.8
+fastapi-csrf-protect>=0.2.0
+python-json-logger>=2.0.7
+requests>=2.31.0
+python-dotenv>=1.0.0
+httpx>=0.27.0
+paramiko>=3.4.0
