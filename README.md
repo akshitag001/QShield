@@ -1,169 +1,101 @@
-# Q-Shield Cryptographic Inventory Scanner
+# Q-Shield: Post-Quantum Cryptographic Inventory & Readiness Scanner
 
-A comprehensive tool for discovering and inventorying cryptographic controls in public-facing applications (web servers, APIs, TLS endpoints). Generates a structured **Cryptographic Bill of Materials (CBOM)** suitable for compliance reporting, risk assessment, and post-quantum readiness planning.
+[![Hackathon Submission](https://img.shields.io/badge/Hackathon-Submission-blue.svg)](#)
+[![PQC Ready](https://img.shields.io/badge/PQC-Ready-success.svg)](#)
+[![Security Posture](https://img.shields.io/badge/Security-Visibility-brightgreen.svg)](#)
 
-## Features
+> **Executive Summary for SOC Analysts, IT Leads & Hackathon Judges**
+> Q-Shield is a comprehensive cryptographic inventory scanner designed for the impending Post-Quantum Cryptography (PQC) transition. It provides full visibility into the cryptographic posture of public-facing assets (web servers, APIs, TLS endpoints). It generates a structured **Cryptographic Bill of Materials (CBOM)**, enabling SOC teams, compliance auditors, and IT leadership to identify legacy encryption, track PQC migration, and ensure compliance with frameworks like PCI-DSS and NIST.
 
-- **TLS Protocol Discovery**: Detects supported TLS versions (1.0, 1.1, 1.2, 1.3)
-- **Cipher Suite Inventory**: Enumerates all supported cipher suites with parsed components
-- **Certificate Analysis**: Extracts full X.509 certificate metadata including SANs
-- **Key Exchange Detection**: Identifies key exchange algorithms and parameters
-- **API Endpoint Probing**: Discovers common API paths and types
-- **HTTP Security Headers**: Extracts HSTS, CSP, and other security headers
-- **CBOM Generation**: Produces standardized cryptographic inventory reports
-- **Quantum Vulnerability Flagging**: Identifies assets vulnerable to quantum attacks
-- **Multi-Target Scanning**: Parallel scanning of multiple endpoints
+---
 
-## Installation
+## 🌟 The Problem We Solve
+Modern organizations lack comprehensive visibility into their cryptographic assets across dynamic, distributed environments. This leaves them:
+- **Vulnerable to "Harvest Now, Decrypt Later"** quantum attacks.
+- Blind to deprecated, legacy encryption algorithms (e.g., TLS 1.0, 3DES, SHA-1).
+- Struggling to maintain compliance and cryptographic agility.
+
+**The Solution:** Q-Shield automates the discovery, classification, and continuous monitoring of these assets without requiring agent installations.
+
+## 🎯 Key Use Cases
+- **SOC Analysts & Incident Responders:** Rapidly triage endpoints to ensure they meet security baselines. Automatically flag endpoints with broken/weak cipher suites.
+- **Compliance & Audit Teams:** Instantly generate a Cryptographic Bill of Materials (CBOM) for reporting (e.g., PCI-DSS requirements for strong cryptography).
+- **IT & Security Architects:** Plan and track the organization's migration to Post-Quantum Cryptography (PQC) by identifying which endpoints currently support quantum-safe hybrid algorithms (e.g., ML-KEM).
+
+## ✨ Features
+
+- **Advanced PQC Detection**: Multi-engine detection of pure and hybrid Post-Quantum Cryptography algorithms.
+- **TLS Protocol Discovery**: Detects supported TLS versions (1.0, 1.1, 1.2, 1.3).
+- **Cipher Suite Inventory**: Enumerates all supported cipher suites with parsed components.
+- **Certificate Analysis**: Extracts full X.509 certificate metadata including SANs and checks OCSP revocation.
+- **Key Exchange Detection**: Identifies key exchange algorithms, parameters, and Forward Secrecy support.
+- **API Endpoint Probing**: Discovers common API paths and types automatically.
+- **HTTP Security Headers**: Extracts HSTS, CSP, and other critical security headers.
+- **CBOM Generation**: Produces standardized cryptographic inventory reports.
+- **Multi-Target Scanning**: Parallel scanning of multiple endpoints or subdomains.
+
+---
+
+## 🚀 Quick Start
+
+### Installation
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Authentication, RBAC, and Database
+### CLI Usage
 
-The web app now includes:
-
-- Session-based login (`/login`)
-- Role-based access control (RBAC)
-  - `admin` / `cyber_lead` / `it_lead` / `security_head`: org-wide access
-    - View all employees' scan history and reports
-    - View platform audit logs (`/api/admin/logs`)
-    - Clear full scan history
-  - `analyst`: employee-level access
-    - Can scan targets
-    - Can view/download only their own scan results and reports
-  - `viewer`: read-only limited role in UI (no scanning)
-- Persistent scan history using SQL database (default: SQLite)
-- Audit logging of user actions (login/logout/scan/history-clear)
-- Subdomain workflow from CT intelligence:
-  - After primary domain scan, detected subdomains are listed.
-  - User can scan selected subdomains or all detected subdomains.
-  - Combined CBOM is generated across selected scope (parent + selected subdomains).
-- Scheduled reporting workflow:
-  - Page: `/scheduled-reporting`
-  - Configure domain + codomain scope, frequency (`weekly` or `monthly`), date/time, and delivery email.
-  - Enable/disable schedules from the same page.
-  - Background worker executes due schedules, runs a scan, stores results, and emails summary.
-
-### Default Login (first run)
-
-- Username: `admin`
-- Password: `admin123`
-
-Set these environment variables in production:
-
-- `SESSION_SECRET_KEY`
-- `ADMIN_USERNAME`
-- `ADMIN_PASSWORD`
-- `DATABASE_URL` (example: `sqlite:///./qshield.db`)
-
-Set these for scheduled email delivery:
-
-- `SMTP_HOST`
-- `SMTP_PORT` (default: `587`)
-- `SMTP_USERNAME`
-- `SMTP_PASSWORD`
-- `SMTP_FROM_EMAIL` (or fallback to `SMTP_USERNAME`)
-- `SMTP_USE_TLS` (`1` by default)
-
-Optional scheduler controls:
-
-- `SCHEDULE_REPORT_POLL_SECONDS` (default: `60`, minimum `30`)
-- `DISABLE_SCHEDULE_WORKER` (`1` to disable)
-
-### Database Behavior
-
-- Scan results are stored in `scan_records` table.
-- Users are stored in `users` table.
-- Audit events are stored in `audit_logs` table.
-- On first startup, an admin user is auto-created if no users exist.
-
-### Subdomain Scan API
-
-- `POST /api/scan/subdomains`
-  - Input: `parent_target`, `subdomains[]`, `include_parent`, `timeout`
-  - Output: per-target scan results + combined CBOM + vulnerabilities summary
-
-## Quick Start
-
-### Single Target Scan
-
+**Single Target Scan:**
 ```bash
 python scanner.py example.com
 ```
 
-### Multiple Targets
-
+**Multiple Targets:**
 ```bash
 python scanner.py example.com api.example.com secure.example.com
 ```
 
-### From File
-
+**From File:**
 ```bash
 python scanner.py -f targets.txt
 ```
 
-### Output Formats
-
+**Output Formats (CBOM, JSON, Summary):**
 ```bash
-# Full CBOM (default)
-python scanner.py example.com --format cbom
-
-# Raw JSON scan results
-python scanner.py example.com --format json
-
-# Human-readable summary
+python scanner.py example.com --format cbom -o report.json
 python scanner.py example.com --format summary
 ```
 
-### Save to File
+---
 
-```bash
-python scanner.py example.com -o report.json
-```
+## 🛡️ Web Interface, RBAC, and Database
 
-## Module Usage
+The solution includes a full-featured web application tailored for enterprise teams:
 
-### Low-Level TLS Scanner
+- **Session-based login** (`/login`)
+- **Role-Based Access Control (RBAC)**:
+  - `admin` / `cyber_lead` / `it_lead` / `security_head`: Org-wide access to view all employees' scan history, reports, and platform audit logs. Can clear scan history.
+  - `analyst`: Employee-level access to run scans and view/download their own scan results.
+  - `viewer`: Read-only limited role for dashboards.
+- **Persistent Storage**: Scan history is saved using an SQL database (default: SQLite, `scan_records`, `users`, `audit_logs`).
+- **Audit Logging**: Comprehensive tracking of user actions (login/logout/scan).
 
-```python
-from tls_scanner import scan_tls
+### Subdomain Reconnaissance Workflow
+Integrated with Certificate Transparency (CT) intelligence:
+1. Scan a primary domain.
+2. The system detects associated subdomains.
+3. Users can select specific subdomains to scan, generating a combined CBOM across the entire scope.
 
-result = scan_tls("example.com")
-print(result["tls_versions_supported"])
-print(result["cipher_suites"])
-print(result["certificate"])
-```
+### Scheduled Reporting
+- Configure domain/subdomain scope, frequency (`weekly` or `monthly`), and delivery email.
+- Background workers automatically execute due schedules, store results, and email executive summaries.
 
-### CBOM Generator
+---
 
-```python
-from tls_scanner import scan_tls
-from cbom_generator import generate_cbom
+## 📦 Output Structure (CBOM Format)
 
-# Scan multiple targets
-results = [scan_tls("example.com"), scan_tls("api.example.com")]
-
-# Generate CBOM
-cbom = generate_cbom(results)
-print(cbom.to_json())
-```
-
-### Multi-Target Scanner
-
-```python
-from scanner import scan_multiple_targets, generate_inventory_report
-
-targets = ["example.com", "api.example.com"]
-report = generate_inventory_report(targets, output_format="cbom")
-print(report)
-```
-
-## Output Structure
-
-### CBOM Format
+Q-Shield generates a standardized Cryptographic Bill of Materials (CBOM):
 
 ```json
 {
@@ -174,7 +106,6 @@ print(report)
     {
       "endpoint": "example.com:443",
       "ip_address": "93.184.216.34",
-      "port": 443,
       "tls_versions": ["TLSv1.2", "TLSv1.3"],
       "forward_secrecy": true,
       "weak_crypto_detected": false,
@@ -199,109 +130,62 @@ print(report)
 }
 ```
 
-### Asset Types
-
-| Type | Description |
-|------|-------------|
-| `certificate` | X.509 certificates |
-| `cipher_suite` | Complete cipher suite configurations |
-| `key_exchange` | Key exchange algorithms (RSA, DHE, ECDHE) |
-| `hash_algorithm` | Hash/MAC algorithms (SHA-256, SHA-384) |
-| `symmetric_cipher` | Symmetric encryption (AES-256-GCM) |
-| `public_key` | Public key parameters |
-| `protocol` | TLS protocol versions |
-
 ### Strength Classifications
+Every asset is evaluated and scored to provide instant context for SOC teams:
+| Strength | Description | Action Required |
+|----------|-------------|-----------------|
+| `strong` | Recommended (AES-256, RSA-2048+, ECDSA-256+, TLSv1.3) | None |
+| `acceptable` | Currently acceptable (AES-128, TLSv1.2) | Monitor for future deprecation |
+| `weak` | Deprecated (3DES, RSA-1024, TLSv1.0/1.1) | Plan for upgrade immediately |
+| `broken` | Known broken (MD5, DES, RC4, SSLv3) | **CRITICAL: Remediate immediately** |
 
-| Strength | Description |
-|----------|-------------|
-| `strong` | Recommended (AES-256, RSA-2048+, ECDSA-256+) |
-| `acceptable` | Currently acceptable (AES-128, TLSv1.2) |
-| `weak` | Deprecated (3DES, RSA-1024, TLSv1.0/1.1) |
-| `broken` | Known broken (MD5, DES, RC4, SSLv3) |
+---
 
-## CLI Options
+## 🛠️ Module Usage for Developers
 
-```
-usage: scanner.py [-h] [-f FILE] [--timeout TIMEOUT]
-                  [--format {cbom,json,summary}]
-                  [--no-api-probe] [--no-headers] [-o OUTPUT]
-                  [targets ...]
+Integrate Q-Shield directly into your Python security pipelines.
 
-Options:
-  targets              Target URLs, hostnames, or IP:PORT
-  -f, --file           File containing targets (one per line)
-  --timeout            Connection timeout in seconds (default: 5)
-  --format             Output format: cbom, json, summary
-  --no-api-probe       Skip API endpoint detection
-  --no-headers         Skip HTTP security header extraction
-  -o, --output         Output file (default: stdout)
+**Low-Level TLS Scanner:**
+```python
+from tls_scanner import scan_tls
+result = scan_tls("example.com")
+print(result["tls_versions_supported"])
 ```
 
-## CLI Error Codes
+**CBOM Generator:**
+```python
+from tls_scanner import scan_tls
+from cbom_generator import generate_cbom
 
-| Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 2 | Invalid target |
-| 3 | DNS failure |
-| 4 | Connection failed |
-| 5 | Timeout |
-| 6 | TLS handshake failed |
-| 10 | Unexpected error |
-
-## Tests
-
-```bash
-python -m unittest
+results = [scan_tls("example.com"), scan_tls("api.example.com")]
+cbom = generate_cbom(results)
+print(cbom.to_json())
 ```
 
-## Deploying on Vercel
+---
 
-This repository is configured for Vercel using `vercel.json`.
+## ☁️ Deployment
 
-### Deploy from Dashboard
+This repository is configured for serverless deployment on Vercel using `vercel.json`.
 
 1. Push this project to GitHub.
 2. In Vercel dashboard, click **Add New → Project**.
-3. Import your GitHub repo.
-4. Keep defaults (Vercel will detect Python via `app.py` + `vercel.json`).
-5. Click **Deploy**.
+3. Import your GitHub repo (Vercel will detect Python via `app.py` + `vercel.json`).
+4. Click **Deploy**.
 
-Optional CLI deploy:
+*(Note: SQLite is used by default. For production deployments on serverless platforms, configure a remote PostgreSQL/MySQL via the `DATABASE_URL` environment variable).*
 
+---
+
+## 🏗️ Architecture Summary
+- `scanner.py`: Main orchestrator, handles multi-target concurrency.
+- `tls_scanner.py`: Low-level protocol analysis, socket interactions, and PQC multi-engine detection.
+- `cbom_generator.py`: Risk classification, asset structuring, and JSON generation.
+- `app.py`: Flask web application, API routes, RBAC middleware, and background scheduler.
+
+---
+
+### Tests
 ```bash
-npm i -g vercel
-vercel login
-vercel --prod
+python -m unittest
 ```
-
-### Notes
-
-- Required Python dependencies for cloud deployment are listed in `requirements.txt`.
-- The app stores scan history in memory, so history resets whenever the serverless instance is recycled.
-
-## Limitations
-
-- Cipher enumeration depends on local Python/OpenSSL capabilities
-- TLS 1.0/1.1 may be disabled in modern runtimes
-- API endpoint detection uses HEAD requests on common paths
-- Certificate chain analysis requires OpenSSL CLI or `cryptography` library
-- Only reports what is observable on the wire (passive scanning)
-
-## Architecture
-
-```
-scanner.py          - Main orchestrator, multi-target scanning
-tls_scanner.py      - Low-level TLS protocol scanner
-cbom_generator.py   - CBOM generation and asset classification
-```
-
-## Future Enhancements (Planned)
-
-- Post-Quantum Cryptography (PQC) detection
-- Risk scoring engine
-- Compliance mapping (NIST, PCI-DSS)
-- Dashboard UI
-- Scheduled scanning and change detection
-- No dashboards or recommendations
