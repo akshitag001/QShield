@@ -377,10 +377,11 @@ def _find_pqc_openssl() -> Optional[str]:
             result = subprocess.run(
                 [candidate, "s_client", "-help"],
                 capture_output=True,
-                text=True,
                 timeout=5,
             )
-            help_output = result.stdout + result.stderr
+            stdout = (result.stdout or b"").decode("utf-8", errors="ignore")
+            stderr = (result.stderr or b"").decode("utf-8", errors="ignore")
+            help_output = stdout + stderr
 
             if "mlkem" in help_output.lower() or "x25519mlkem" in help_output.lower() or "pqc" in help_output.lower():
                 logger.debug(f"[PQC OPENSSL] Found PQC-capable binary: {candidate}")
@@ -393,10 +394,11 @@ def _find_pqc_openssl() -> Optional[str]:
             version_result = subprocess.run(
                 [candidate, "version"],
                 capture_output=True,
-                text=True,
                 timeout=5,
             )
-            version_output = (version_result.stdout + version_result.stderr).lower()
+            stdout = (version_result.stdout or b"").decode("utf-8", errors="ignore")
+            stderr = (version_result.stderr or b"").decode("utf-8", errors="ignore")
+            version_output = (stdout + stderr).lower()
             if "open quantum safe" in version_output or "oqs" in version_output:
                 logger.debug(f"[PQC OPENSSL] Found OQS OpenSSL binary via version: {candidate}")
                 return candidate
@@ -437,14 +439,15 @@ def _run_openssl(args: List[str], timeout: int, which: str = "normal") -> Option
         completed = subprocess.run(
             [binary] + extra_args + args,
             capture_output=True,
-            text=True,
             timeout=effective_timeout,
             **run_kwargs,
         )
     except (subprocess.SubprocessError, FileNotFoundError):
         return None
 
-    return completed.stdout + completed.stderr
+    stdout = (completed.stdout or b"").decode("utf-8", errors="ignore")
+    stderr = (completed.stderr or b"").decode("utf-8", errors="ignore")
+    return stdout + stderr
 
 
 # ── PQC detection helpers ─────────────────────────────────────────────────────
@@ -684,8 +687,10 @@ def _probe_pqc_via_curl(host: str, port: int, timeout: int = 10) -> Dict[str, An
             "curl", "-v", "--curves", "X25519MLKEM768:X25519Kyber768Draft00:P256MLKEM768",
             f"https://{host}:{port}/",
         ]
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-        output = proc.stdout + proc.stderr
+        proc = subprocess.run(cmd, capture_output=True, timeout=timeout)
+        stdout = (proc.stdout or b"").decode("utf-8", errors="ignore")
+        stderr = (proc.stderr or b"").decode("utf-8", errors="ignore")
+        output = stdout + stderr
         
         # Check for PQC indicators in curl's TLS handshake output
         # Patterns: "SSL connection using ... / X25519Kyber768" or similar
@@ -738,8 +743,10 @@ def _probe_pqc_via_gnutls(host: str, port: int, timeout: int = 10) -> Dict[str, 
             "-p", str(port),
             host,
         ]
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, input="Q\n")
-        output = proc.stdout + proc.stderr
+        proc = subprocess.run(cmd, capture_output=True, timeout=timeout, input=b"Q\n")
+        stdout = (proc.stdout or b"").decode("utf-8", errors="ignore")
+        stderr = (proc.stderr or b"").decode("utf-8", errors="ignore")
+        output = stdout + stderr
         
         # Check for "Key Exchange: X25519-MLKEM768" or similar
         kex_match = re.search(r"Key\s+Exchange:\s*([^\n]+)", output, re.IGNORECASE)
@@ -1659,10 +1666,11 @@ def _probe_pqc_via_curl(host: str, port: int) -> Dict[str, Any]:
         result = subprocess.run(
             ["curl", "--curves", "X25519MLKEM768", "-v", f"https://{host}:{port}/"],
             capture_output=True,
-            text=True,
             timeout=10,
         )
-        output = result.stdout + result.stderr
+        stdout = (result.stdout or b"").decode("utf-8", errors="ignore")
+        stderr = (result.stderr or b"").decode("utf-8", errors="ignore")
+        output = stdout + stderr
         
         # Look for PQC indicators in curl's TLS handshake output
         if re.search(r"X25519.*[Kk]yber|[Kk]yber.*X25519|MLKEM|ml-kem", output, re.IGNORECASE):
