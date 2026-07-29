@@ -12,9 +12,12 @@ services:
     container_name: qshield-app
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8002:8000"
     environment:
       - DATABASE_URL=sqlite:////data/qshield.db
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=admin123
+    user: "root"
     volumes:
       - qshield-data:/data
 
