@@ -1,3 +1,16 @@
+# ==============================================================================
+# QShield Dockerfile
+#
+# NOTE FOR AIR-GAPPED / OFFLINE BANKING ENVIRONMENTS (e.g., Punjab National Bank):
+# If the target deployment system does not have outbound internet access:
+# 1. Manually download the source archives before building:
+#    - OpenSSL 3.3.0: https://github.com/openssl/openssl/archive/refs/tags/openssl-3.3.0.tar.gz
+#    - liboqs 0.9.2: https://github.com/open-quantum-safe/liboqs/archive/refs/tags/0.9.2.tar.gz
+#    - oqs-provider 0.5.3: https://github.com/open-quantum-safe/oqs-provider/archive/refs/tags/0.5.3.tar.gz
+# 2. Copy the tarballs into the build context and change the `git clone` steps below
+#    to extract the local tarballs: e.g. `COPY openssl-3.3.0.tar.gz /opt/` and `tar -xzf ...`
+# ==============================================================================
+
 FROM python:3.11-slim
 
 # Install build tools, OpenSSL, and dependencies

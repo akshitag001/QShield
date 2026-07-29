@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # ======================================================================
+  # OPTION 1: SQLite Deployment (Default, Persistent, Zero-Configuration)
+  # ======================================================================
+  qshield:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: qshield:latest
+    container_name: qshield-app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:////data/qshield.db
+    volumes:
+      - qshield-data:/data
+
+#   # ======================================================================
+#   # OPTION 2: PostgreSQL Deployment (Recommended for Bank/Production Use)
+#   # ======================================================================
+#   # To use Option 2:
+#   # 1. Comment out Option 1's "qshield" service.
+#   # 2. Uncomment the "db" and "qshield-pg" services below.
+#   # 3. Run: docker-compose up -d --build
+#   # ======================================================================
+#   db:
+#     image: postgres:15-alpine
+#     container_name: qshield-db
+#     restart: unless-stopped
+#     environment:
+#       - POSTGRES_USER=qshield_user
+#       - POSTGRES_PASSWORD=pnb_secure_password_987
+#       - POSTGRES_DB=qshield
+#     volumes:
+#       - pg-data:/var/lib/postgresql/data
+#     ports:
+#       - "5432:5432"
+#
+#   qshield-pg:
+#     build:
+#       context: .
+#       dockerfile: Dockerfile
+#     image: qshield:latest
+#     container_name: qshield-app-pg
+#     restart: unless-stopped
+#     ports:
+#       - "8000:8000"
+#     environment:
+#       - DATABASE_URL=postgresql://qshield_user:pnb_secure_password_987@db:5432/qshield
+#     depends_on:
+#       - db
+#     volumes:
+#       - qshield-reports:/app/reports
+
+volumes:
+  qshield-data:
+#   pg-data:
+#   qshield-reports:
