@@ -21,7 +21,7 @@ import urllib.parse
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
 import logging
@@ -160,6 +160,11 @@ class User(Base):
     # Email-based OTP login (added alongside existing password auth; does not replace it)
     email: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True, index=True)
     is_demo_account: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # Custom roles: `role` is the fixed literal "custom" for these users (never collides
+    # with a predefined role string), the admin-chosen display name lives here, and the
+    # granted permission keys (see PERMISSION_CATALOG) are stored as a JSON list.
+    custom_role_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    permissions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class LoginOtp(Base):
@@ -482,6 +487,12 @@ def _run_light_migrations() -> None:
             if "is_demo_account" not in existing_cols:
                 conn.execute(text("ALTER TABLE users ADD COLUMN is_demo_account BOOLEAN DEFAULT 0"))
                 logger.info("Migration: added users.is_demo_account column")
+            if "custom_role_name" not in existing_cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN custom_role_name VARCHAR(100)"))
+                logger.info("Migration: added users.custom_role_name column")
+            if "permissions" not in existing_cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN permissions TEXT"))
+                logger.info("Migration: added users.permissions column")
             # Backfill email for previously self-registered users (username == email already)
             conn.execute(text(
                 "UPDATE users SET email = username "
@@ -746,9 +757,76 @@ def _require_user(request: Request, db: Session) -> User:
     return user
 
 
+# ============================================================================
+# CUSTOM ROLES
+# Predefined roles (admin/cyber_lead/it_lead/security_head/analyst/viewer) are
+# still checked exactly as before everywhere in this file — see the
+# short-circuit in _role_satisfies() below, which is byte-for-byte the old
+# `user.role in allowed_roles` check. Custom-role users (role == "custom")
+# never match a predefined allowed_roles list, so they fall through to a
+# permission-based check against whatever the admin granted them at creation.
+#
+# The permission catalog mirrors the RBAC matrix already shown in
+# user_management.html. It's mapped onto the small number of distinct
+# allowed_roles combinations actually used across this file's _require_roles()
+# call sites — that mapping reflects the app's *existing* granularity, not
+# invented precision: e.g. this codebase doesn't have separate endpoints for
+# "change a user's role" vs. "enable/disable a user" (both go through the same
+# admin-only PUT /api/users/{id}), so granting either permission unlocks that
+# shared endpoint for a custom-role user, same as it does implicitly for admin.
+# ============================================================================
+PERMISSION_CATALOG = [
+    {"key": "dashboard", "label": "Dashboard", "baseline": True},
+    {"key": "view_own_reports", "label": "View Own Reports", "baseline": True},
+    {"key": "tls_scanning", "label": "TLS Scanning"},
+    {"key": "cbom_generation", "label": "CBOM Generation"},
+    {"key": "scheduled_reporting", "label": "Scheduled Reporting"},
+    {"key": "manage_reports", "label": "Manage Reports"},
+    {"key": "view_audit_logs", "label": "View Audit Logs"},
+    {"key": "manage_users", "label": "Manage Users"},
+    {"key": "change_roles", "label": "Change Roles"},
+    {"key": "disable_enable_users", "label": "Disable/Enable Users"},
+]
+VALID_PERMISSION_KEYS = {p["key"] for p in PERMISSION_CATALOG}
+# "dashboard"/"view_own_reports" need no explicit grant: every authenticated,
+# active user already gets that baseline via _require_user() alone (no
+# _require_roles() call gates those routes), predefined roles included.
+BASELINE_PERMISSION_KEYS = {p["key"] for p in PERMISSION_CATALOG if p.get("baseline")}
+
+# allowed_roles (as passed to _require_roles across this file) -> permission(s)
+# that satisfy it for a custom-role user. Any one match is sufficient.
+_ROLE_PATTERN_PERMISSIONS: Dict[frozenset, Tuple[str, ...]] = {
+    frozenset(["admin"]): ("manage_users", "change_roles", "disable_enable_users"),
+    frozenset(["admin", "analyst"]): ("tls_scanning", "cbom_generation"),
+    frozenset(["admin", "analyst", "cyber_lead", "it_lead", "security_head"]): ("scheduled_reporting",),
+    frozenset(["admin", "cyber_lead", "it_lead", "security_head"]): ("manage_reports", "view_audit_logs"),
+}
+
+
+def _user_permissions(user: Optional[User]) -> set:
+    """Parsed permission-key set for a custom-role user (empty for predefined roles)."""
+    if not user or user.role != "custom" or not user.permissions:
+        return set()
+    try:
+        return {p for p in json.loads(user.permissions) if p in VALID_PERMISSION_KEYS}
+    except Exception:
+        return set()
+
+
+def _role_satisfies(user: User, allowed_roles: List[str]) -> bool:
+    if user.role in allowed_roles:
+        return True  # identical to the original check for every predefined role
+    if user.role == "custom":
+        needed = _ROLE_PATTERN_PERMISSIONS.get(frozenset(allowed_roles))
+        if needed:
+            granted = _user_permissions(user)
+            return any(p in granted for p in needed)
+    return False
+
+
 def _require_roles(request: Request, db: Session, allowed_roles: List[str]) -> User:
     user = _require_user(request, db)
-    if user.role not in allowed_roles:
+    if not _role_satisfies(user, allowed_roles):
         _log_authz_rejection(
             db, user, request, "auth_rejected_insufficient_role",
             details={"required_roles": allowed_roles, "actual_role": user.role},
@@ -758,7 +836,40 @@ def _require_roles(request: Request, db: Session, allowed_roles: List[str]) -> U
 
 
 def _is_admin(user: User) -> bool:
-    return user.role in ["admin", "cyber_lead", "it_lead", "security_head"]
+    if user.role in ["admin", "cyber_lead", "it_lead", "security_head"]:
+        return True  # identical to the original check for every predefined role
+    if user.role == "custom":
+        granted = _user_permissions(user)
+        return "manage_reports" in granted or "view_audit_logs" in granted
+    return False
+
+
+def _display_role(user: User) -> str:
+    """Human-readable role label — the custom name for custom-role users, the
+    raw role string for everyone else (unchanged from existing behavior)."""
+    if user.role == "custom" and user.custom_role_name:
+        return user.custom_role_name
+    return user.role
+
+
+def _parse_custom_role_fields(body: Dict[str, Any]) -> Tuple[str, List[str]]:
+    """Validate and normalize the custom_role_name/permissions fields from a
+    create/update user request body. Raises HTTPException(400) on bad input."""
+    custom_role_name = str(body.get("custom_role_name") or "").strip()
+    if not custom_role_name:
+        raise HTTPException(status_code=400, detail="Custom role name is required")
+    if len(custom_role_name) > 100:
+        raise HTTPException(status_code=400, detail="Custom role name must be 100 characters or fewer")
+
+    raw_permissions = body.get("permissions")
+    if not isinstance(raw_permissions, list) or not raw_permissions:
+        raise HTTPException(status_code=400, detail="Select at least one permission for the custom role")
+
+    permissions = sorted({p for p in raw_permissions if isinstance(p, str) and p in VALID_PERMISSION_KEYS})
+    if not permissions:
+        raise HTTPException(status_code=400, detail="No valid permissions selected")
+
+    return custom_role_name, permissions
 
 
 def _log_event(
@@ -2373,6 +2484,13 @@ async def user_management_page(request: Request, db: Session = Depends(get_db)):
     return _render_template(request, "user_management.html", {"current_user": {"username": user.username, "role": user.role}})
 
 
+@app.get("/api/permissions/catalog")
+async def get_permission_catalog(request: Request, db: Session = Depends(get_db)):
+    """List the permission keys available for custom roles (admin only)."""
+    _require_roles(request, db, ["admin"])
+    return {"permissions": PERMISSION_CATALOG}
+
+
 @app.get("/api/users")
 async def list_users(request: Request, db: Session = Depends(get_db)):
     """Get all users (admin only)"""
@@ -2386,6 +2504,10 @@ async def list_users(request: Request, db: Session = Depends(get_db)):
             "id": u.id,
             "username": u.username,
             "role": u.role,
+            "display_role": _display_role(u),
+            "is_custom_role": u.role == "custom",
+            "custom_role_name": u.custom_role_name if u.role == "custom" else None,
+            "permissions": sorted(_user_permissions(u)) if u.role == "custom" else None,
             "is_active": u.is_active,
             "last_login": u.last_login.isoformat() if u.last_login else None,
             "created_at": u.created_at.isoformat() if u.created_at else None,
@@ -2407,28 +2529,45 @@ async def update_user(request: Request, user_id: int, db: Session = Depends(get_
     body = await request.json()
     role = body.get("role")
     is_active = body.get("is_active")
-    
+
     # Validate role
-    valid_roles = ["viewer", "analyst", "analyst", "cyber_lead", "it_lead", "security_head", "admin"]
+    valid_roles = ["viewer", "analyst", "analyst", "cyber_lead", "it_lead", "security_head", "admin", "custom"]
     if role and role not in valid_roles:
         raise HTTPException(status_code=400, detail="Invalid role")
-    
+
+    custom_role_name = None
+    custom_permissions: List[str] = []
+    if role == "custom":
+        custom_role_name, custom_permissions = _parse_custom_role_fields(body)
+
     # Update user
     if role:
         target_user.role = role
+        if role == "custom":
+            target_user.custom_role_name = custom_role_name
+            target_user.permissions = json.dumps(custom_permissions)
+        else:
+            # Switched to (or stayed on) a predefined role — clear custom-role fields.
+            target_user.custom_role_name = None
+            target_user.permissions = None
     if is_active is not None:
         target_user.is_active = is_active
-    
+
     db.commit()
-    
+
     _log_event(
-        db, admin_user, "update_user", 
-        resource_type="user", 
+        db, admin_user, "update_user",
+        resource_type="user",
         resource_id=str(user_id),
         target=target_user.username,
-        details={"role": role, "is_active": is_active}
+        details={
+            "role": role,
+            "custom_role_name": custom_role_name,
+            "permissions": custom_permissions or None,
+            "is_active": is_active,
+        }
     )
-    
+
     return {"success": True, "message": f"User {target_user.username} updated"}
 
 
@@ -2441,24 +2580,29 @@ async def create_user(request: Request, db: Session = Depends(get_db)):
     username = body.get("username")
     password = body.get("password")
     role = body.get("role", "viewer")
-    
+
     # Validate input
     if not username or not password:
         raise HTTPException(status_code=400, detail="Username and password required")
-    
+
     if len(password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
-    
+
     # Check if user exists
     existing = db.query(User).filter(User.username == username).first()
     if existing:
         raise HTTPException(status_code=400, detail="Username already exists")
-    
+
     # Validate role
-    valid_roles = ["viewer", "analyst", "cyber_lead", "it_lead", "security_head", "admin"]
+    valid_roles = ["viewer", "analyst", "cyber_lead", "it_lead", "security_head", "admin", "custom"]
     if role not in valid_roles:
         raise HTTPException(status_code=400, detail="Invalid role")
-    
+
+    custom_role_name = None
+    custom_permissions: List[str] = []
+    if role == "custom":
+        custom_role_name, custom_permissions = _parse_custom_role_fields(body)
+
     # Create new user
     new_user = User(
         username=username,
@@ -2467,6 +2611,8 @@ async def create_user(request: Request, db: Session = Depends(get_db)):
         email=username if "@" in username else None,
         password_hash=_hash_password(password),
         role=role,
+        custom_role_name=custom_role_name,
+        permissions=json.dumps(custom_permissions) if role == "custom" else None,
         is_active=True
     )
 
@@ -2479,9 +2625,9 @@ async def create_user(request: Request, db: Session = Depends(get_db)):
         resource_type="user",
         resource_id=str(new_user.id),
         target=username,
-        details={"role": role}
+        details={"role": role, "custom_role_name": custom_role_name, "permissions": custom_permissions or None}
     )
-    
+
     return {"success": True, "user_id": new_user.id, "username": username}
 
 
