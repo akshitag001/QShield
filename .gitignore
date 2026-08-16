@@ -43,6 +43,7 @@ Thumbs.db
 # Sensitive files
 .env
 .env.*
+!.env.example
 *.sqlite3
 
 # Local config

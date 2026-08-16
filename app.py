@@ -2382,15 +2382,18 @@ async def create_user(request: Request, db: Session = Depends(get_db)):
     # Create new user
     new_user = User(
         username=username,
+        # If the username is an email address, also populate the email column so
+        # this account can use email-based OTP login (not just password login).
+        email=username if "@" in username else None,
         password_hash=_hash_password(password),
         role=role,
         is_active=True
     )
-    
+
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    
+
     _log_event(
         db, admin_user, "create_user",
         resource_type="user",

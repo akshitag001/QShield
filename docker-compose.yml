@@ -13,6 +13,8 @@ services:
     restart: unless-stopped
     ports:
       - "8002:8000"
+    env_file:
+      - .env  # SMTP_* credentials for OTP email delivery (gitignored, not committed)
     environment:
       - DATABASE_URL=sqlite:////data/qshield.db
       - ADMIN_USERNAME=admin
