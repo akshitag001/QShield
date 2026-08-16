@@ -691,11 +691,57 @@ def _get_current_user(request: Request, db: Session) -> Optional[User]:
         return None
 
 
+# ============================================================================
+# AUTHORIZATION-FAILURE AUDIT LOGGING
+# Deduplicated so an attacker hammering a protected endpoint (or a stale
+# session cookie retried by a client) can't flood the audit_logs table.
+# This is a visibility feature, not a rate limiter/lockout — the login route's
+# existing slowapi limits are unaffected and unchanged.
+# ============================================================================
+_authz_log_dedup_lock = threading.Lock()
+_authz_log_dedup_cache: Dict[str, float] = {}
+AUTHZ_LOG_DEDUP_WINDOW_SECONDS = 60
+
+
+def _log_authz_rejection(
+    db: Session,
+    user: Optional[User],
+    request: Request,
+    action: str,
+    details: Optional[Dict[str, Any]] = None,
+) -> None:
+    path = request.url.path
+    identity = f"user:{user.id}" if user else f"ip:{get_remote_address(request)}"
+    dedup_key = f"{identity}:{path}:{action}"
+    now_ts = time.time()
+
+    with _authz_log_dedup_lock:
+        last = _authz_log_dedup_cache.get(dedup_key)
+        if last is not None and (now_ts - last) < AUTHZ_LOG_DEDUP_WINDOW_SECONDS:
+            return  # suppress repeated identical rejection within the window
+        _authz_log_dedup_cache[dedup_key] = now_ts
+        # Opportunistic cleanup so this cache can't grow unbounded.
+        if len(_authz_log_dedup_cache) > 5000:
+            cutoff = now_ts - AUTHZ_LOG_DEDUP_WINDOW_SECONDS
+            for k, v in list(_authz_log_dedup_cache.items()):
+                if v < cutoff:
+                    _authz_log_dedup_cache.pop(k, None)
+
+    try:
+        _log_event(db, user, action, target=path, details=details)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to write authorization-rejection audit log: {e}")
+
+
 def _require_user(request: Request, db: Session) -> User:
     user = _get_current_user(request, db)
     if not user:
+        _log_authz_rejection(db, None, request, "auth_required_rejected")
         raise HTTPException(status_code=401, detail="Authentication required")
     if not user.is_active:
+        _log_authz_rejection(db, user, request, "auth_rejected_inactive_account")
         raise HTTPException(status_code=403, detail="Your account has been disabled")
     return user
 
@@ -703,6 +749,10 @@ def _require_user(request: Request, db: Session) -> User:
 def _require_roles(request: Request, db: Session, allowed_roles: List[str]) -> User:
     user = _require_user(request, db)
     if user.role not in allowed_roles:
+        _log_authz_rejection(
+            db, user, request, "auth_rejected_insufficient_role",
+            details={"required_roles": allowed_roles, "actual_role": user.role},
+        )
         raise HTTPException(status_code=403, detail="Insufficient permissions")
     return user
 
@@ -719,9 +769,24 @@ def _log_event(
     resource_id: Optional[str] = None,
     target: Optional[str] = None,
     details: Optional[Dict[str, Any]] = None,
+    attempted_username: Optional[str] = None,
 ) -> None:
-    username = user.username if user else "anonymous"
-    role = user.role if user else "anonymous"
+    """Write an audit log entry.
+
+    `attempted_username` lets callers record a best-effort identity (e.g. the
+    username/email typed into a failed login form) when there is no `User`
+    row to attach to yet — so failed attempts stay searchable/attributable in
+    the Logs UI instead of collapsing into a generic "anonymous" row.
+    """
+    if user:
+        username = user.username
+        role = user.role
+    elif attempted_username:
+        username = attempted_username
+        role = "unknown"
+    else:
+        username = "anonymous"
+        role = "anonymous"
     db.add(
         AuditLog(
             user_id=user.id if user else None,
@@ -1434,7 +1499,11 @@ async def login_submit(
         user = db.query(User).filter(User.username == username).first()
         if not user:
             logger.warning(f"User not found: {username}")
-            # Return login page with error
+            _log_event(db, None, "login_failed", target=username,
+                       details={"reason": "user_not_found"}, attempted_username=username)
+            db.commit()
+            # Return login page with error (deliberately generic — do not reveal
+            # to the client whether the username or the password was wrong)
             return _render_template(
                 request,
                 "login.html",
@@ -1443,12 +1512,14 @@ async def login_submit(
                     "error": "Invalid username or password",
                 },
             )
-        
+
         logger.info(f"User found: {username}, checking password...")
-        
+
         # Verify password
         if not _verify_password(password, user.password_hash):
             logger.warning(f"Password verification failed for user: {username}")
+            _log_event(db, user, "login_failed", target=username, details={"reason": "invalid_password"})
+            db.commit()
             return _render_template(
                 request,
                 "login.html",
@@ -1462,6 +1533,9 @@ async def login_submit(
         
         # Check if user is active
         if not user.is_active:
+            logger.warning(f"Login blocked for inactive account: {username}")
+            _log_event(db, user, "login_blocked", target=username, details={"reason": "account_inactive"})
+            db.commit()
             return _render_template(
                 request,
                 "login.html",
@@ -1739,6 +1813,12 @@ async def firebase_login(request: Request, db: Session = Depends(get_db)):
     
     except FirebaseAuthError as e:
         logger.error(f"Firebase token verification failed: {e}")
+        try:
+            _log_event(db, None, "login_failed", details={"provider": "firebase", "reason": str(e)})
+            db.commit()
+        except Exception as log_exc:
+            db.rollback()
+            logger.error(f"Failed to write failed-Firebase-login audit log: {log_exc}")
         raise HTTPException(status_code=401, detail=f"Firebase authentication failed: {str(e)}")
     except HTTPException:
         raise
