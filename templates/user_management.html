@@ -6,19 +6,72 @@
     <title>User Management - Q-Shield</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .btn-secondary {
+            background: #ffffff;
+            border: 1px solid rgba(17, 24, 39, 0.14);
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            border-color: rgba(17, 24, 39, 0.24);
+        }
+
+        details.nav-dropdown > summary {
+            list-style: none;
+        }
+
+        details.nav-dropdown > summary::-webkit-details-marker {
+            display: none;
+        }
+    </style>
 </head>
 <body class="bg-gray-50">
     <div class="min-h-screen">
-        <!-- Navigation -->
-        <nav class="bg-white shadow">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between h-16">
-                    <div class="flex items-center">
-                        <h1 class="text-2xl font-bold text-gray-900">User Management</h1>
+        <!-- Navigation (shared structure/links with the rest of the app) -->
+        <nav class="sticky top-0 z-30 backdrop-blur-sm bg-white/70 border-b border-gray-200/70">
+            <div class="max-w-7xl mx-auto px-6 py-4">
+                <div class="glass-card rounded-2xl px-5 py-3 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-9 h-9 bg-gray-900 rounded-xl flex items-center justify-center shadow-sm">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                            </svg>
+                        </div>
+                        <span class="text-xl font-semibold text-gray-900">Q-Shield</span>
                     </div>
-                    <div class="flex items-center space-x-4">
-                        <span class="text-gray-700">{{ current_user.username }}</span>
-                        <a href="/logout" class="text-red-600 hover:text-red-800">Logout</a>
+                    <div class="hidden md:flex items-center space-x-8 text-sm font-medium text-gray-500">
+                        <details class="nav-dropdown relative">
+                            <summary class="cursor-pointer hover:text-gray-900 transition">Scanner ▾</summary>
+                            <div class="absolute top-full left-0 mt-2 w-44 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-50">
+                                <a href="/#scanner" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Main Scanner</a>
+                                <a href="/vendors" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Vendor Scanner</a>
+                            </div>
+                        </details>
+                        <a href="/asset-inventory" class="hover:text-gray-900 transition">Asset Inventory</a>
+                        <a href="/history" class="hover:text-gray-900 transition">History</a>
+                        <a href="/scheduled-reporting" class="hover:text-gray-900 transition">Scheduled Reports</a>
+                        <a href="/learn" class="hover:text-gray-900 transition">Learn</a>
+                        {% if current_user.role in ['admin', 'cyber_lead', 'it_lead', 'security_head'] %}
+                        <a href="/logs" class="hover:text-gray-900 transition">Logs</a>
+                        {% endif %}
+                        {% if current_user.role == 'admin' %}
+                        <a href="/user_management" class="text-gray-900">Users</a>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="hidden sm:inline text-xs text-gray-500 px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200">
+                            {{ current_user.username }} ({{ current_user.role }})
+                        </span>
+                        <a href="/" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Dashboard</a>
+                        <a href="/logout" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Logout</a>
                     </div>
                 </div>
             </div>
@@ -181,14 +234,24 @@
 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
-                    <select id="editRole" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <select id="editRole" onchange="toggleCustomRolePanel('edit')" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="viewer">Viewer (Read-only)</option>
                         <option value="analyst">Analyst</option>
                         <option value="cyber_lead">Cyber Lead</option>
                         <option value="it_lead">IT Lead</option>
                         <option value="security_head">Security Head</option>
                         <option value="admin">Admin</option>
+                        <option value="custom">Custom Role...</option>
                     </select>
+                </div>
+
+                <div id="editCustomRolePanel" class="hidden mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Custom Role Name</label>
+                    <input type="text" id="editCustomRoleName" maxlength="100" placeholder="e.g. Short Term User"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3">
+
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Permissions / Access</label>
+                    <div id="editPermissionsList" class="space-y-1.5 max-h-40 overflow-y-auto pr-1"></div>
                 </div>
 
                 <div class="mb-6">
@@ -228,14 +291,24 @@
 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
-                    <select id="newRole" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <select id="newRole" onchange="toggleCustomRolePanel('new')" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="viewer">Viewer (Read-only)</option>
                         <option value="analyst">Analyst</option>
                         <option value="cyber_lead">Cyber Lead</option>
                         <option value="it_lead">IT Lead</option>
                         <option value="security_head">Security Head</option>
                         <option value="admin">Admin</option>
+                        <option value="custom">Custom Role...</option>
                     </select>
+                </div>
+
+                <div id="newCustomRolePanel" class="hidden mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Custom Role Name</label>
+                    <input type="text" id="newCustomRoleName" maxlength="100" placeholder="e.g. Short Term User"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3">
+
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Permissions / Access</label>
+                    <div id="newPermissionsList" class="space-y-1.5 max-h-40 overflow-y-auto pr-1"></div>
                 </div>
 
                 <div class="flex justify-end space-x-4">
@@ -252,9 +325,13 @@
 
     <script>
         let allUsers = [];
+        let permissionCatalog = []; // [{key, label, baseline?}], fetched once from /api/permissions/catalog
 
-        // Load users on page load
-        document.addEventListener('DOMContentLoaded', loadUsers);
+        // Load users + the permission catalog (for the Custom Role panel) on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUsers();
+            loadPermissionCatalog();
+        });
 
         async function loadUsers() {
             try {
@@ -263,9 +340,53 @@
                 renderUsers();
             } catch (error) {
                 console.error('Error loading users:', error);
-                document.getElementById('noUsersMessage').innerHTML = 
+                document.getElementById('noUsersMessage').innerHTML =
                     '<p class="text-red-500 text-lg">Error loading users</p>';
             }
+        }
+
+        async function loadPermissionCatalog() {
+            try {
+                const response = await axios.get('/api/permissions/catalog');
+                permissionCatalog = response.data.permissions || [];
+                renderPermissionCheckboxes('newPermissionsList', []);
+                renderPermissionCheckboxes('editPermissionsList', []);
+            } catch (error) {
+                console.error('Error loading permission catalog:', error);
+            }
+        }
+
+        // Renders the permission catalog as checkboxes into the given container,
+        // pre-checking whatever's in `selectedKeys` (and baseline permissions,
+        // which every authenticated user already has regardless of role).
+        function renderPermissionCheckboxes(containerId, selectedKeys) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const selected = new Set(selectedKeys || []);
+            container.innerHTML = permissionCatalog.map(p => `
+                <label class="flex items-center text-sm text-gray-700">
+                    <input type="checkbox" class="perm-checkbox w-4 h-4 text-blue-600 rounded mr-2"
+                        value="${p.key}" ${p.baseline || selected.has(p.key) ? 'checked' : ''} ${p.baseline ? 'disabled' : ''}>
+                    ${p.label}${p.baseline ? ' <span class="text-gray-400">(included automatically)</span>' : ''}
+                </label>
+            `).join('');
+        }
+
+        function getCheckedPermissions(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return [];
+            return Array.from(container.querySelectorAll('.perm-checkbox'))
+                .filter(cb => cb.checked)
+                .map(cb => cb.value);
+        }
+
+        // Shows/hides the custom-role name + permissions panel based on the
+        // role select's current value. `prefix` is 'new' or 'edit'.
+        function toggleCustomRolePanel(prefix) {
+            const role = document.getElementById(`${prefix}Role`).value;
+            const panel = document.getElementById(`${prefix}CustomRolePanel`);
+            if (!panel) return;
+            panel.classList.toggle('hidden', role !== 'custom');
         }
 
         function renderUsers() {
@@ -279,12 +400,17 @@
             }
 
             noMsg.style.display = 'none';
-            tbody.innerHTML = allUsers.map(user => `
+            tbody.innerHTML = allUsers.map(user => {
+                const roleLabel = user.display_role || user.role;
+                const permTitle = user.is_custom_role && user.permissions
+                    ? `title="Permissions: ${permissionLabels(user.permissions).join(', ')}"`
+                    : '';
+                return `
                 <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${user.username}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        <span class="px-3 py-1 rounded-full text-xs font-semibold ${getRoleBadgeColor(user.role)}">
-                            ${user.role}
+                        <span ${permTitle} class="px-3 py-1 rounded-full text-xs font-semibold ${getRoleBadgeColor(user.role)}">
+                            ${roleLabel}${user.is_custom_role ? ' (custom)' : ''}
                         </span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm">
@@ -303,7 +429,12 @@
                         <button onclick="deleteUser(${user.id})" class="text-red-600 hover:text-red-900">Delete</button>
                     </td>
                 </tr>
-            `).join('');
+            `;
+            }).join('');
+        }
+
+        function permissionLabels(keys) {
+            return (keys || []).map(k => (permissionCatalog.find(p => p.key === k) || {}).label || k);
         }
 
         function getRoleBadgeColor(role) {
@@ -313,7 +444,8 @@
                 'it_lead': 'bg-blue-100 text-blue-800',
                 'security_head': 'bg-indigo-100 text-indigo-800',
                 'analyst': 'bg-orange-100 text-orange-800',
-                'viewer': 'bg-gray-100 text-gray-800'
+                'viewer': 'bg-gray-100 text-gray-800',
+                'custom': 'bg-pink-100 text-pink-800'
             };
             return colors[role] || 'bg-gray-100 text-gray-800';
         }
@@ -326,6 +458,9 @@
             document.getElementById('editUsername').value = user.username;
             document.getElementById('editRole').value = user.role;
             document.getElementById('editActive').checked = user.is_active;
+            document.getElementById('editCustomRoleName').value = user.custom_role_name || '';
+            renderPermissionCheckboxes('editPermissionsList', user.permissions || []);
+            toggleCustomRolePanel('edit');
 
             document.getElementById('editUserModal').classList.remove('hidden');
         }
@@ -340,9 +475,25 @@
             const userId = document.getElementById('editUserId').value;
             const role = document.getElementById('editRole').value;
             const is_active = document.getElementById('editActive').checked;
+            const payload = { role, is_active };
+
+            if (role === 'custom') {
+                const customRoleName = document.getElementById('editCustomRoleName').value.trim();
+                const permissions = getCheckedPermissions('editPermissionsList');
+                if (!customRoleName) {
+                    alert('Enter a name for the custom role.');
+                    return;
+                }
+                if (permissions.length === 0) {
+                    alert('Select at least one permission for the custom role.');
+                    return;
+                }
+                payload.custom_role_name = customRoleName;
+                payload.permissions = permissions;
+            }
 
             try {
-                await axios.put(`/api/users/${userId}`, { role, is_active });
+                await axios.put(`/api/users/${userId}`, payload);
                 alert('User updated successfully!');
                 closeEditUserModal();
                 loadUsers();
@@ -369,6 +520,9 @@
             document.getElementById('newUsername').value = '';
             document.getElementById('newPassword').value = '';
             document.getElementById('newRole').value = 'viewer';
+            document.getElementById('newCustomRoleName').value = '';
+            renderPermissionCheckboxes('newPermissionsList', []);
+            toggleCustomRolePanel('new');
             document.getElementById('createUserModal').classList.remove('hidden');
         }
 
@@ -382,9 +536,25 @@
             const username = document.getElementById('newUsername').value;
             const password = document.getElementById('newPassword').value;
             const role = document.getElementById('newRole').value;
+            const payload = { username, password, role };
+
+            if (role === 'custom') {
+                const customRoleName = document.getElementById('newCustomRoleName').value.trim();
+                const permissions = getCheckedPermissions('newPermissionsList');
+                if (!customRoleName) {
+                    alert('Enter a name for the custom role.');
+                    return;
+                }
+                if (permissions.length === 0) {
+                    alert('Select at least one permission for the custom role.');
+                    return;
+                }
+                payload.custom_role_name = customRoleName;
+                payload.permissions = permissions;
+            }
 
             try {
-                await axios.post('/api/users', { username, password, role });
+                await axios.post('/api/users', payload);
                 alert('User created successfully!');
                 closeCreateUserModal();
                 loadUsers();

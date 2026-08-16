@@ -161,6 +161,24 @@
             } catch { return dateString; }
         };
 
+        // Actions that represent a failed authentication or a rejected
+        // authorization check — flagged visually so they don't blend in
+        // with normal successful activity.
+        const FAILURE_ACTIONS = new Set([
+            'login_failed',
+            'login_blocked',
+            'auth_required_rejected',
+            'auth_rejected_inactive_account',
+            'auth_rejected_insufficient_role',
+        ]);
+
+        function actionBadge(action) {
+            if (FAILURE_ACTIONS.has(action)) {
+                return '<span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-red-100 text-red-700 border border-red-200 align-middle ml-2">Failed / Rejected</span>';
+            }
+            return '';
+        }
+
         async function loadLogs() {
             const list = document.getElementById('logsList');
             const status = document.getElementById('logsStatus');
@@ -175,23 +193,30 @@
 
                 const data = await response.json();
                 const logs = data.logs || [];
-                status.textContent = `Showing ${logs.length} logs`;
+                const failedCount = logs.filter(l => FAILURE_ACTIONS.has(l.action)).length;
+                status.textContent = `Showing ${logs.length} logs${failedCount ? ` (${failedCount} failed/rejected)` : ''}`;
 
                 if (!logs.length) {
                     list.innerHTML = '<p class="text-gray-400 text-center py-8">No logs found.</p>';
                     return;
                 }
 
-                list.innerHTML = logs.map(log => `
-                    <div class="flex items-start justify-between p-4 bg-white border border-gray-200 rounded-xl">
+                list.innerHTML = logs.map(log => {
+                    const isFailure = FAILURE_ACTIONS.has(log.action);
+                    const cardClasses = isFailure
+                        ? 'flex items-start justify-between p-4 bg-red-50/60 border border-red-200 rounded-xl'
+                        : 'flex items-start justify-between p-4 bg-white border border-gray-200 rounded-xl';
+                    return `
+                    <div class="${cardClasses}">
                         <div>
-                            <p class="text-sm font-medium text-gray-900">${log.username} (${log.role}) — ${log.action}</p>
+                            <p class="text-sm font-medium text-gray-900">${log.username} (${log.role}) — ${log.action}${actionBadge(log.action)}</p>
                             <p class="text-xs text-gray-500 mt-1">${log.resource_type || '-'} ${log.resource_id || ''} ${log.target ? `| Target: ${log.target}` : ''}</p>
                             <p class="text-xs text-gray-400 mt-1">${log.details ? JSON.stringify(log.details) : ''}</p>
                         </div>
                         <p class="text-xs text-gray-400">${formatIST(log.created_at)}</p>
                     </div>
-                `).join('');
+                `;
+                }).join('');
             } catch (error) {
                 list.innerHTML = '<p class="text-gray-500 text-sm">Error while loading logs.</p>';
                 status.textContent = 'Error while loading logs.';

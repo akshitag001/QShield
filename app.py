@@ -21,7 +21,7 @@ import urllib.parse
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
 import logging
@@ -31,7 +31,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTex
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, create_engine, select
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, create_engine, inspect, select, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -157,6 +157,29 @@ class User(Base):
     session_token: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     last_login: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    # Email-based OTP login (added alongside existing password auth; does not replace it)
+    email: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True, index=True)
+    is_demo_account: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # Custom roles: `role` is the fixed literal "custom" for these users (never collides
+    # with a predefined role string), the admin-chosen display name lives here, and the
+    # granted permission keys (see PERMISSION_CATALOG) are stored as a JSON list.
+    custom_role_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    permissions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class LoginOtp(Base):
+    """One-time-passcodes issued for email-based login."""
+    __tablename__ = "login_otps"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    otp_hash: Mapped[str] = mapped_column(String(255))
+    purpose: Mapped[str] = mapped_column(String(20), default="login")
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=False)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    consumed: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class ScanRecord(Base):
@@ -305,6 +328,15 @@ class VendorToggleRequest(BaseModel):
     enabled: bool
 
 
+class OtpRequestBody(BaseModel):
+    email: str = Field(..., min_length=3, max_length=255)
+
+
+class OtpVerifyBody(BaseModel):
+    email: str = Field(..., min_length=3, max_length=255)
+    otp: str = Field(..., min_length=6, max_length=6)
+
+
 class VendorScanRequest(BaseModel):
     vendor_ids: List[str] = Field(default_factory=list)
     timeout: int = Field(default=12, ge=1, le=60)
@@ -436,33 +468,102 @@ def _verify_password(password: str, stored_hash: str) -> bool:
 
 
 # ============================================================================
-# AUTO-INITIALIZATION: Database and Admin User Setup on Startup
+# LIGHTWEIGHT SCHEMA MIGRATION
+# Adds columns introduced after initial deployment (e.g. email-based OTP
+# login) to a pre-existing database without requiring Alembic. Base.metadata
+# .create_all() only creates missing *tables*, not missing *columns* on
+# tables that already exist, so new nullable columns need this explicit step.
+# ============================================================================
+def _run_light_migrations() -> None:
+    try:
+        insp = inspect(engine)
+        if "users" not in insp.get_table_names():
+            return  # fresh DB: create_all() will create the up-to-date schema
+        existing_cols = {c["name"] for c in insp.get_columns("users")}
+        with engine.begin() as conn:
+            if "email" not in existing_cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR(255)"))
+                logger.info("Migration: added users.email column")
+            if "is_demo_account" not in existing_cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN is_demo_account BOOLEAN DEFAULT 0"))
+                logger.info("Migration: added users.is_demo_account column")
+            if "custom_role_name" not in existing_cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN custom_role_name VARCHAR(100)"))
+                logger.info("Migration: added users.custom_role_name column")
+            if "permissions" not in existing_cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN permissions TEXT"))
+                logger.info("Migration: added users.permissions column")
+            # Backfill email for previously self-registered users (username == email already)
+            conn.execute(text(
+                "UPDATE users SET email = username "
+                "WHERE (email IS NULL OR email = '') AND username LIKE '%@%'"
+            ))
+        try:
+            with engine.begin() as conn:
+                conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email_unique ON users(email)"))
+        except Exception as idx_exc:
+            logger.warning(f"Could not create unique index on users.email: {idx_exc}")
+    except Exception as e:
+        logger.error(f"Light migration failed: {e}")
+
+
+# Demo accounts covering every RBAC role, so the OTP flow can be demonstrated
+# end-to-end without a real mailbox. Passwords are kept only for backward
+# compatibility with the legacy password-based /login route.
+DEMO_USERS = [
+    {"username": "admin", "email": "admin.demo@qshield.local", "password": "admin123", "role": "admin"},
+    {"username": "analyst_demo", "email": "analyst.demo@qshield.local", "password": "analyst123", "role": "analyst"},
+    {"username": "viewer_demo", "email": "viewer.demo@qshield.local", "password": "viewer123", "role": "viewer"},
+    {"username": "cyberlead_demo", "email": "cyberlead.demo@qshield.local", "password": "cyberlead123", "role": "cyber_lead"},
+    {"username": "itlead_demo", "email": "itlead.demo@qshield.local", "password": "itlead123", "role": "it_lead"},
+    {"username": "securityhead_demo", "email": "securityhead.demo@qshield.local", "password": "securityhead123", "role": "security_head"},
+]
+
+
+def _seed_demo_users(db: Session) -> None:
+    """Idempotently ensure the demo account for every role exists and is flagged is_demo_account."""
+    for spec in DEMO_USERS:
+        user = db.query(User).filter(User.username == spec["username"]).first()
+        if user:
+            changed = False
+            if not user.email:
+                user.email = spec["email"]
+                changed = True
+            if not user.is_demo_account:
+                user.is_demo_account = True
+                changed = True
+            if changed:
+                db.add(user)
+        else:
+            db.add(
+                User(
+                    username=spec["username"],
+                    email=spec["email"],
+                    password_hash=_hash_password(spec["password"]),
+                    role=spec["role"],
+                    is_active=True,
+                    is_demo_account=True,
+                )
+            )
+    db.commit()
+
+
+# ============================================================================
+# AUTO-INITIALIZATION: Database and Demo User Setup on Startup
 # ============================================================================
 def _auto_initialize_database():
-    """Auto-initialize database and create default admin user on first startup."""
+    """Auto-initialize database, run migrations, and seed demo users on first startup."""
     try:
         # Create all tables
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables created/verified")
-        
-        # Check if any users exist
+
+        _run_light_migrations()
+
         db = SessionLocal()
         try:
-            has_users = db.scalar(select(User.id).limit(1))
-            
-            if not has_users:
-                # Create default admin user
-                admin_user = User(
-                    username="admin",
-                    password_hash=_hash_password("admin123"),
-                    role="admin",
-                    is_active=True
-                )
-                db.add(admin_user)
-                db.commit()
-                logger.info("Default admin user created: admin / admin123")
-            else:
-                logger.info("Database already has users, skipping admin creation")
+            _seed_demo_users(db)
+            logger.info("Demo users seeded/verified for all roles (see DEMO_USERS).")
         finally:
             db.close()
     except Exception as e:
@@ -528,6 +629,64 @@ def _create_session_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+# ============================================================================
+# EMAIL-BASED OTP LOGIN
+# ============================================================================
+OTP_TTL_SECONDS = 45
+OTP_MAX_ATTEMPTS = 5
+# Pepper used to hash OTP codes at rest. A per-process random fallback is fine
+# since OTPs live for OTP_TTL_SECONDS only and never need to survive a restart.
+_OTP_PEPPER = os.getenv("OTP_SECRET_PEPPER") or secrets.token_hex(32)
+
+
+def _generate_otp() -> str:
+    """Generate a cryptographically random 6-digit OTP (zero-padded)."""
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def _hash_otp(otp: str, email: str) -> str:
+    """Hash an OTP code for storage (never store OTPs in plaintext)."""
+    msg = f"{email.strip().lower()}:{otp}".encode("utf-8")
+    return hmac.new(_OTP_PEPPER.encode("utf-8"), msg, hashlib.sha256).hexdigest()
+
+
+def _send_otp_email(to_email: str, otp: str) -> Optional[str]:
+    """Send an OTP code by email using the same SMTP_* settings as scheduled reports.
+
+    Returns an error string on failure, or None on success.
+    """
+    smtp_host = os.getenv("SMTP_HOST")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = os.getenv("SMTP_USERNAME")
+    smtp_password = os.getenv("SMTP_PASSWORD")
+    smtp_from = os.getenv("SMTP_FROM_EMAIL") or smtp_user
+    smtp_use_tls = os.getenv("SMTP_USE_TLS", "1") != "0"
+
+    if not smtp_host or not smtp_from:
+        return "SMTP is not configured (set SMTP_HOST and SMTP_FROM_EMAIL/SMTP_USERNAME)"
+
+    message = EmailMessage()
+    message["Subject"] = "Your Q-Shield login OTP"
+    message["From"] = smtp_from
+    message["To"] = to_email
+    message.set_content(
+        f"Your Q-Shield one-time login code is: {otp}\n\n"
+        f"This code expires in {OTP_TTL_SECONDS} seconds and can only be used once.\n"
+        f"If you did not request this, you can safely ignore this email."
+    )
+
+    try:
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=20) as smtp:
+            if smtp_use_tls:
+                smtp.starttls()
+            if smtp_user and smtp_password:
+                smtp.login(smtp_user, smtp_password)
+            smtp.send_message(message)
+        return None
+    except Exception as exc:
+        return str(exc)
+
+
 def _get_current_user(request: Request, db: Session) -> Optional[User]:
     """Get the current authenticated user from session cookie."""
     session_token = request.cookies.get("session_id")
@@ -543,24 +702,174 @@ def _get_current_user(request: Request, db: Session) -> Optional[User]:
         return None
 
 
+# ============================================================================
+# AUTHORIZATION-FAILURE AUDIT LOGGING
+# Deduplicated so an attacker hammering a protected endpoint (or a stale
+# session cookie retried by a client) can't flood the audit_logs table.
+# This is a visibility feature, not a rate limiter/lockout — the login route's
+# existing slowapi limits are unaffected and unchanged.
+# ============================================================================
+_authz_log_dedup_lock = threading.Lock()
+_authz_log_dedup_cache: Dict[str, float] = {}
+AUTHZ_LOG_DEDUP_WINDOW_SECONDS = 60
+
+
+def _log_authz_rejection(
+    db: Session,
+    user: Optional[User],
+    request: Request,
+    action: str,
+    details: Optional[Dict[str, Any]] = None,
+) -> None:
+    path = request.url.path
+    identity = f"user:{user.id}" if user else f"ip:{get_remote_address(request)}"
+    dedup_key = f"{identity}:{path}:{action}"
+    now_ts = time.time()
+
+    with _authz_log_dedup_lock:
+        last = _authz_log_dedup_cache.get(dedup_key)
+        if last is not None and (now_ts - last) < AUTHZ_LOG_DEDUP_WINDOW_SECONDS:
+            return  # suppress repeated identical rejection within the window
+        _authz_log_dedup_cache[dedup_key] = now_ts
+        # Opportunistic cleanup so this cache can't grow unbounded.
+        if len(_authz_log_dedup_cache) > 5000:
+            cutoff = now_ts - AUTHZ_LOG_DEDUP_WINDOW_SECONDS
+            for k, v in list(_authz_log_dedup_cache.items()):
+                if v < cutoff:
+                    _authz_log_dedup_cache.pop(k, None)
+
+    try:
+        _log_event(db, user, action, target=path, details=details)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to write authorization-rejection audit log: {e}")
+
+
 def _require_user(request: Request, db: Session) -> User:
     user = _get_current_user(request, db)
     if not user:
+        _log_authz_rejection(db, None, request, "auth_required_rejected")
         raise HTTPException(status_code=401, detail="Authentication required")
     if not user.is_active:
+        _log_authz_rejection(db, user, request, "auth_rejected_inactive_account")
         raise HTTPException(status_code=403, detail="Your account has been disabled")
     return user
 
 
+# ============================================================================
+# CUSTOM ROLES
+# Predefined roles (admin/cyber_lead/it_lead/security_head/analyst/viewer) are
+# still checked exactly as before everywhere in this file — see the
+# short-circuit in _role_satisfies() below, which is byte-for-byte the old
+# `user.role in allowed_roles` check. Custom-role users (role == "custom")
+# never match a predefined allowed_roles list, so they fall through to a
+# permission-based check against whatever the admin granted them at creation.
+#
+# The permission catalog mirrors the RBAC matrix already shown in
+# user_management.html. It's mapped onto the small number of distinct
+# allowed_roles combinations actually used across this file's _require_roles()
+# call sites — that mapping reflects the app's *existing* granularity, not
+# invented precision: e.g. this codebase doesn't have separate endpoints for
+# "change a user's role" vs. "enable/disable a user" (both go through the same
+# admin-only PUT /api/users/{id}), so granting either permission unlocks that
+# shared endpoint for a custom-role user, same as it does implicitly for admin.
+# ============================================================================
+PERMISSION_CATALOG = [
+    {"key": "dashboard", "label": "Dashboard", "baseline": True},
+    {"key": "view_own_reports", "label": "View Own Reports", "baseline": True},
+    {"key": "tls_scanning", "label": "TLS Scanning"},
+    {"key": "cbom_generation", "label": "CBOM Generation"},
+    {"key": "scheduled_reporting", "label": "Scheduled Reporting"},
+    {"key": "manage_reports", "label": "Manage Reports"},
+    {"key": "view_audit_logs", "label": "View Audit Logs"},
+    {"key": "manage_users", "label": "Manage Users"},
+    {"key": "change_roles", "label": "Change Roles"},
+    {"key": "disable_enable_users", "label": "Disable/Enable Users"},
+]
+VALID_PERMISSION_KEYS = {p["key"] for p in PERMISSION_CATALOG}
+# "dashboard"/"view_own_reports" need no explicit grant: every authenticated,
+# active user already gets that baseline via _require_user() alone (no
+# _require_roles() call gates those routes), predefined roles included.
+BASELINE_PERMISSION_KEYS = {p["key"] for p in PERMISSION_CATALOG if p.get("baseline")}
+
+# allowed_roles (as passed to _require_roles across this file) -> permission(s)
+# that satisfy it for a custom-role user. Any one match is sufficient.
+_ROLE_PATTERN_PERMISSIONS: Dict[frozenset, Tuple[str, ...]] = {
+    frozenset(["admin"]): ("manage_users", "change_roles", "disable_enable_users"),
+    frozenset(["admin", "analyst"]): ("tls_scanning", "cbom_generation"),
+    frozenset(["admin", "analyst", "cyber_lead", "it_lead", "security_head"]): ("scheduled_reporting",),
+    frozenset(["admin", "cyber_lead", "it_lead", "security_head"]): ("manage_reports", "view_audit_logs"),
+}
+
+
+def _user_permissions(user: Optional[User]) -> set:
+    """Parsed permission-key set for a custom-role user (empty for predefined roles)."""
+    if not user or user.role != "custom" or not user.permissions:
+        return set()
+    try:
+        return {p for p in json.loads(user.permissions) if p in VALID_PERMISSION_KEYS}
+    except Exception:
+        return set()
+
+
+def _role_satisfies(user: User, allowed_roles: List[str]) -> bool:
+    if user.role in allowed_roles:
+        return True  # identical to the original check for every predefined role
+    if user.role == "custom":
+        needed = _ROLE_PATTERN_PERMISSIONS.get(frozenset(allowed_roles))
+        if needed:
+            granted = _user_permissions(user)
+            return any(p in granted for p in needed)
+    return False
+
+
 def _require_roles(request: Request, db: Session, allowed_roles: List[str]) -> User:
     user = _require_user(request, db)
-    if user.role not in allowed_roles:
+    if not _role_satisfies(user, allowed_roles):
+        _log_authz_rejection(
+            db, user, request, "auth_rejected_insufficient_role",
+            details={"required_roles": allowed_roles, "actual_role": user.role},
+        )
         raise HTTPException(status_code=403, detail="Insufficient permissions")
     return user
 
 
 def _is_admin(user: User) -> bool:
-    return user.role in ["admin", "cyber_lead", "it_lead", "security_head"]
+    if user.role in ["admin", "cyber_lead", "it_lead", "security_head"]:
+        return True  # identical to the original check for every predefined role
+    if user.role == "custom":
+        granted = _user_permissions(user)
+        return "manage_reports" in granted or "view_audit_logs" in granted
+    return False
+
+
+def _display_role(user: User) -> str:
+    """Human-readable role label — the custom name for custom-role users, the
+    raw role string for everyone else (unchanged from existing behavior)."""
+    if user.role == "custom" and user.custom_role_name:
+        return user.custom_role_name
+    return user.role
+
+
+def _parse_custom_role_fields(body: Dict[str, Any]) -> Tuple[str, List[str]]:
+    """Validate and normalize the custom_role_name/permissions fields from a
+    create/update user request body. Raises HTTPException(400) on bad input."""
+    custom_role_name = str(body.get("custom_role_name") or "").strip()
+    if not custom_role_name:
+        raise HTTPException(status_code=400, detail="Custom role name is required")
+    if len(custom_role_name) > 100:
+        raise HTTPException(status_code=400, detail="Custom role name must be 100 characters or fewer")
+
+    raw_permissions = body.get("permissions")
+    if not isinstance(raw_permissions, list) or not raw_permissions:
+        raise HTTPException(status_code=400, detail="Select at least one permission for the custom role")
+
+    permissions = sorted({p for p in raw_permissions if isinstance(p, str) and p in VALID_PERMISSION_KEYS})
+    if not permissions:
+        raise HTTPException(status_code=400, detail="No valid permissions selected")
+
+    return custom_role_name, permissions
 
 
 def _log_event(
@@ -571,9 +880,24 @@ def _log_event(
     resource_id: Optional[str] = None,
     target: Optional[str] = None,
     details: Optional[Dict[str, Any]] = None,
+    attempted_username: Optional[str] = None,
 ) -> None:
-    username = user.username if user else "anonymous"
-    role = user.role if user else "anonymous"
+    """Write an audit log entry.
+
+    `attempted_username` lets callers record a best-effort identity (e.g. the
+    username/email typed into a failed login form) when there is no `User`
+    row to attach to yet — so failed attempts stay searchable/attributable in
+    the Logs UI instead of collapsing into a generic "anonymous" row.
+    """
+    if user:
+        username = user.username
+        role = user.role
+    elif attempted_username:
+        username = attempted_username
+        role = "unknown"
+    else:
+        username = "anonymous"
+        role = "anonymous"
     db.add(
         AuditLog(
             user_id=user.id if user else None,
@@ -1286,7 +1610,11 @@ async def login_submit(
         user = db.query(User).filter(User.username == username).first()
         if not user:
             logger.warning(f"User not found: {username}")
-            # Return login page with error
+            _log_event(db, None, "login_failed", target=username,
+                       details={"reason": "user_not_found"}, attempted_username=username)
+            db.commit()
+            # Return login page with error (deliberately generic — do not reveal
+            # to the client whether the username or the password was wrong)
             return _render_template(
                 request,
                 "login.html",
@@ -1295,12 +1623,14 @@ async def login_submit(
                     "error": "Invalid username or password",
                 },
             )
-        
+
         logger.info(f"User found: {username}, checking password...")
-        
+
         # Verify password
         if not _verify_password(password, user.password_hash):
             logger.warning(f"Password verification failed for user: {username}")
+            _log_event(db, user, "login_failed", target=username, details={"reason": "invalid_password"})
+            db.commit()
             return _render_template(
                 request,
                 "login.html",
@@ -1314,6 +1644,9 @@ async def login_submit(
         
         # Check if user is active
         if not user.is_active:
+            logger.warning(f"Login blocked for inactive account: {username}")
+            _log_event(db, user, "login_blocked", target=username, details={"reason": "account_inactive"})
+            db.commit()
             return _render_template(
                 request,
                 "login.html",
@@ -1353,6 +1686,174 @@ async def login_submit(
                 "error": f"An error occurred during login: {str(e)}",
             },
         )
+
+
+@app.post("/api/auth/otp/request")
+@limiter.limit("6/minute")
+async def otp_request(request: Request, body: OtpRequestBody, db: Session = Depends(get_db)):
+    """Issue a fresh 6-digit login OTP for the given email.
+
+    - Real accounts: OTP is emailed via SMTP; the code is never returned in the response.
+    - Demo accounts (is_demo_account=True): no email is sent (the address isn't real);
+      the code is returned in the response so the UI can display it inline.
+    """
+    email = body.email.strip().lower()
+    if "@" not in email or "." not in email.split("@")[-1]:
+        raise HTTPException(status_code=400, detail="Please enter a valid email address")
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="No account found with this email address")
+    if not user.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail="Your account is pending admin verification. Please wait or contact an administrator.",
+        )
+
+    now = datetime.now(timezone.utc)
+
+    # Resend protection: block a new OTP while a previous one is still valid.
+    active_otp = (
+        db.query(LoginOtp)
+        .filter(LoginOtp.email == email, LoginOtp.purpose == "login", LoginOtp.consumed.is_(False))
+        .order_by(LoginOtp.id.desc())
+        .first()
+    )
+    if active_otp:
+        expires_at = active_otp.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        remaining = int((expires_at - now).total_seconds())
+        if remaining > 0:
+            raise HTTPException(
+                status_code=429,
+                detail=f"An OTP was already sent. Please wait {remaining}s before requesting a new one.",
+            )
+        active_otp.consumed = True  # expired: invalidate before issuing a new one
+
+    # Invalidate any other stale, unconsumed OTPs for this email
+    db.query(LoginOtp).filter(
+        LoginOtp.email == email, LoginOtp.purpose == "login", LoginOtp.consumed.is_(False)
+    ).update({"consumed": True})
+
+    otp = _generate_otp()
+    otp_row = LoginOtp(
+        email=email,
+        otp_hash=_hash_otp(otp, email),
+        purpose="login",
+        is_demo=bool(user.is_demo_account),
+        attempts=0,
+        consumed=False,
+        expires_at=now + timedelta(seconds=OTP_TTL_SECONDS),
+    )
+    db.add(otp_row)
+    db.commit()
+
+    response: Dict[str, Any] = {
+        "success": True,
+        "expires_in": OTP_TTL_SECONDS,
+        "is_demo": bool(user.is_demo_account),
+    }
+
+    if user.is_demo_account:
+        # No real mailbox exists for demo accounts; surface the code directly.
+        response["demo_otp"] = otp
+        response["message"] = "Demo account — OTP shown below (no email is sent)."
+        logger.info(f"Demo OTP issued for {email}")
+    else:
+        send_error = _send_otp_email(email, otp)
+        if send_error:
+            logger.error(f"Failed to send OTP email to {email}: {send_error}")
+            db.rollback()
+            raise HTTPException(
+                status_code=502,
+                detail="Could not send OTP email. Please contact your administrator to verify SMTP configuration.",
+            )
+        response["message"] = f"OTP sent to {email}."
+
+    _log_event(db, user, "otp_requested", target=email, details={"is_demo": bool(user.is_demo_account)})
+    db.commit()
+    return response
+
+
+@app.post("/api/auth/otp/verify")
+@limiter.limit("10/minute")
+async def otp_verify(request: Request, body: OtpVerifyBody, db: Session = Depends(get_db)):
+    """Verify a submitted OTP and, on success, create a login session (same session
+    mechanism as the existing password login route)."""
+    email = body.email.strip().lower()
+    submitted = body.otp.strip()
+
+    if not submitted.isdigit() or len(submitted) != 6:
+        raise HTTPException(status_code=400, detail="OTP must be a 6-digit code")
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="No account found with this email address")
+
+    otp_row = (
+        db.query(LoginOtp)
+        .filter(LoginOtp.email == email, LoginOtp.purpose == "login", LoginOtp.consumed.is_(False))
+        .order_by(LoginOtp.id.desc())
+        .first()
+    )
+    if not otp_row:
+        raise HTTPException(status_code=400, detail="No active OTP found. Please request a new OTP.")
+
+    now = datetime.now(timezone.utc)
+    expires_at = otp_row.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    if now > expires_at:
+        otp_row.consumed = True
+        db.commit()
+        raise HTTPException(status_code=400, detail="OTP expired. Please request a new OTP.")
+
+    if otp_row.attempts >= OTP_MAX_ATTEMPTS:
+        otp_row.consumed = True
+        db.commit()
+        raise HTTPException(status_code=429, detail="Too many incorrect attempts. Please request a new OTP.")
+
+    expected_hash = _hash_otp(submitted, email)
+    if not hmac.compare_digest(expected_hash, otp_row.otp_hash):
+        otp_row.attempts += 1
+        db.commit()
+        remaining = OTP_MAX_ATTEMPTS - otp_row.attempts
+        if remaining <= 0:
+            otp_row.consumed = True
+            db.commit()
+            raise HTTPException(status_code=429, detail="Too many incorrect attempts. Please request a new OTP.")
+        raise HTTPException(status_code=400, detail=f"Incorrect OTP. {remaining} attempt(s) remaining.")
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail="Your account is pending admin verification. Please wait or contact an administrator.",
+        )
+
+    # Success: consume the OTP and create a session, identical to password login.
+    otp_row.consumed = True
+    session_token = _create_session_token()
+    user.session_token = session_token
+    user.last_login = now
+    db.commit()
+
+    response = JSONResponse({
+        "success": True,
+        "redirect": "/",
+        "user": {"username": user.username, "role": user.role},
+    })
+    response.set_cookie(
+        key="session_id",
+        value=session_token,
+        max_age=86400 * 7,  # 7 days
+        httponly=True,
+        secure=False,  # Set to True in production with HTTPS
+        samesite="lax",
+    )
+    _log_event(db, user, "login_successful_otp", target=email)
+    return response
 
 
 @app.get("/logout")
@@ -1423,6 +1924,12 @@ async def firebase_login(request: Request, db: Session = Depends(get_db)):
     
     except FirebaseAuthError as e:
         logger.error(f"Firebase token verification failed: {e}")
+        try:
+            _log_event(db, None, "login_failed", details={"provider": "firebase", "reason": str(e)})
+            db.commit()
+        except Exception as log_exc:
+            db.rollback()
+            logger.error(f"Failed to write failed-Firebase-login audit log: {log_exc}")
         raise HTTPException(status_code=401, detail=f"Firebase authentication failed: {str(e)}")
     except HTTPException:
         raise
@@ -1465,6 +1972,7 @@ async def register_user(request: Request, db: Session = Depends(get_db)):
         # Create new user (inactive until admin verifies)
         new_user = User(
             username=email,  # Use email as username
+            email=email,
             password_hash=_hash_password(password),
             role=role,
             is_active=False  # Require admin verification before first login
@@ -1973,7 +2481,14 @@ async def get_scan_result(scan_id: str, request: Request, db: Session = Depends(
 async def user_management_page(request: Request, db: Session = Depends(get_db)):
     """Admin user management dashboard"""
     user = _require_roles(request, db, ["admin"])
-    return _render_template(request, "user_management.html", {"current_user": {"username": user.username}})
+    return _render_template(request, "user_management.html", {"current_user": {"username": user.username, "role": user.role}})
+
+
+@app.get("/api/permissions/catalog")
+async def get_permission_catalog(request: Request, db: Session = Depends(get_db)):
+    """List the permission keys available for custom roles (admin only)."""
+    _require_roles(request, db, ["admin"])
+    return {"permissions": PERMISSION_CATALOG}
 
 
 @app.get("/api/users")
@@ -1989,6 +2504,10 @@ async def list_users(request: Request, db: Session = Depends(get_db)):
             "id": u.id,
             "username": u.username,
             "role": u.role,
+            "display_role": _display_role(u),
+            "is_custom_role": u.role == "custom",
+            "custom_role_name": u.custom_role_name if u.role == "custom" else None,
+            "permissions": sorted(_user_permissions(u)) if u.role == "custom" else None,
             "is_active": u.is_active,
             "last_login": u.last_login.isoformat() if u.last_login else None,
             "created_at": u.created_at.isoformat() if u.created_at else None,
@@ -2010,28 +2529,45 @@ async def update_user(request: Request, user_id: int, db: Session = Depends(get_
     body = await request.json()
     role = body.get("role")
     is_active = body.get("is_active")
-    
+
     # Validate role
-    valid_roles = ["viewer", "analyst", "analyst", "cyber_lead", "it_lead", "security_head", "admin"]
+    valid_roles = ["viewer", "analyst", "analyst", "cyber_lead", "it_lead", "security_head", "admin", "custom"]
     if role and role not in valid_roles:
         raise HTTPException(status_code=400, detail="Invalid role")
-    
+
+    custom_role_name = None
+    custom_permissions: List[str] = []
+    if role == "custom":
+        custom_role_name, custom_permissions = _parse_custom_role_fields(body)
+
     # Update user
     if role:
         target_user.role = role
+        if role == "custom":
+            target_user.custom_role_name = custom_role_name
+            target_user.permissions = json.dumps(custom_permissions)
+        else:
+            # Switched to (or stayed on) a predefined role — clear custom-role fields.
+            target_user.custom_role_name = None
+            target_user.permissions = None
     if is_active is not None:
         target_user.is_active = is_active
-    
+
     db.commit()
-    
+
     _log_event(
-        db, admin_user, "update_user", 
-        resource_type="user", 
+        db, admin_user, "update_user",
+        resource_type="user",
         resource_id=str(user_id),
         target=target_user.username,
-        details={"role": role, "is_active": is_active}
+        details={
+            "role": role,
+            "custom_role_name": custom_role_name,
+            "permissions": custom_permissions or None,
+            "is_active": is_active,
+        }
     )
-    
+
     return {"success": True, "message": f"User {target_user.username} updated"}
 
 
@@ -2044,44 +2580,54 @@ async def create_user(request: Request, db: Session = Depends(get_db)):
     username = body.get("username")
     password = body.get("password")
     role = body.get("role", "viewer")
-    
+
     # Validate input
     if not username or not password:
         raise HTTPException(status_code=400, detail="Username and password required")
-    
+
     if len(password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
-    
+
     # Check if user exists
     existing = db.query(User).filter(User.username == username).first()
     if existing:
         raise HTTPException(status_code=400, detail="Username already exists")
-    
+
     # Validate role
-    valid_roles = ["viewer", "analyst", "cyber_lead", "it_lead", "security_head", "admin"]
+    valid_roles = ["viewer", "analyst", "cyber_lead", "it_lead", "security_head", "admin", "custom"]
     if role not in valid_roles:
         raise HTTPException(status_code=400, detail="Invalid role")
-    
+
+    custom_role_name = None
+    custom_permissions: List[str] = []
+    if role == "custom":
+        custom_role_name, custom_permissions = _parse_custom_role_fields(body)
+
     # Create new user
     new_user = User(
         username=username,
+        # If the username is an email address, also populate the email column so
+        # this account can use email-based OTP login (not just password login).
+        email=username if "@" in username else None,
         password_hash=_hash_password(password),
         role=role,
+        custom_role_name=custom_role_name,
+        permissions=json.dumps(custom_permissions) if role == "custom" else None,
         is_active=True
     )
-    
+
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    
+
     _log_event(
         db, admin_user, "create_user",
         resource_type="user",
         resource_id=str(new_user.id),
         target=username,
-        details={"role": role}
+        details={"role": role, "custom_role_name": custom_role_name, "permissions": custom_permissions or None}
     )
-    
+
     return {"success": True, "user_id": new_user.id, "username": username}
 
 
