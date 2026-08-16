@@ -650,11 +650,33 @@ def _hash_otp(otp: str, email: str) -> str:
     return hmac.new(_OTP_PEPPER.encode("utf-8"), msg, hashlib.sha256).hexdigest()
 
 
-def _send_otp_email(to_email: str, otp: str) -> Optional[str]:
-    """Send an OTP code by email using the same SMTP_* settings as scheduled reports.
+def _send_email_via_resend(to_email: str, subject: str, body_text: str) -> Optional[str]:
+    """Send via the Resend HTTP API. Returns an error string on failure, None on success.
 
-    Returns an error string on failure, or None on success.
+    Used in preference to SMTP when RESEND_API_KEY is set: many hosts (Render's
+    standard web services included) block outbound SMTP (ports 25/465/587) at
+    the network level — smtplib then fails with things like
+    "[Errno 101] Network is unreachable" regardless of correct credentials.
+    A plain HTTPS API call isn't affected by that block.
     """
+    api_key = os.getenv("RESEND_API_KEY")
+    from_email = os.getenv("RESEND_FROM_EMAIL") or "onboarding@resend.dev"
+    try:
+        resp = requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"from": from_email, "to": [to_email], "subject": subject, "text": body_text},
+            timeout=20,
+        )
+        if resp.status_code >= 400:
+            return f"Resend API error {resp.status_code}: {resp.text[:300]}"
+        return None
+    except Exception as exc:
+        return str(exc)
+
+
+def _send_email_via_smtp(to_email: str, subject: str, body_text: str) -> Optional[str]:
+    """Send via SMTP_* settings. Returns an error string on failure, None on success."""
     smtp_host = os.getenv("SMTP_HOST")
     smtp_port = int(os.getenv("SMTP_PORT", "587"))
     smtp_user = os.getenv("SMTP_USERNAME")
@@ -666,14 +688,10 @@ def _send_otp_email(to_email: str, otp: str) -> Optional[str]:
         return "SMTP is not configured (set SMTP_HOST and SMTP_FROM_EMAIL/SMTP_USERNAME)"
 
     message = EmailMessage()
-    message["Subject"] = "Your Q-Shield login OTP"
+    message["Subject"] = subject
     message["From"] = smtp_from
     message["To"] = to_email
-    message.set_content(
-        f"Your Q-Shield one-time login code is: {otp}\n\n"
-        f"This code expires in {OTP_TTL_SECONDS} seconds and can only be used once.\n"
-        f"If you did not request this, you can safely ignore this email."
-    )
+    message.set_content(body_text)
 
     try:
         with smtplib.SMTP(smtp_host, smtp_port, timeout=20) as smtp:
@@ -685,6 +703,26 @@ def _send_otp_email(to_email: str, otp: str) -> Optional[str]:
         return None
     except Exception as exc:
         return str(exc)
+
+
+def _send_email(to_email: str, subject: str, body_text: str) -> Optional[str]:
+    """Send an email, preferring the Resend HTTP API (RESEND_API_KEY) over SMTP
+    when both are configured — see _send_email_via_resend for why. Falls back
+    to SMTP so local/dev setups using only SMTP_* keep working unchanged."""
+    if os.getenv("RESEND_API_KEY"):
+        return _send_email_via_resend(to_email, subject, body_text)
+    return _send_email_via_smtp(to_email, subject, body_text)
+
+
+def _send_otp_email(to_email: str, otp: str) -> Optional[str]:
+    """Send an OTP code by email. Returns an error string on failure, or None on success."""
+    return _send_email(
+        to_email,
+        "Your Q-Shield login OTP",
+        f"Your Q-Shield one-time login code is: {otp}\n\n"
+        f"This code expires in {OTP_TTL_SECONDS} seconds and can only be used once.\n"
+        f"If you did not request this, you can safely ignore this email.",
+    )
 
 
 def _get_current_user(request: Request, db: Session) -> Optional[User]:
@@ -1322,16 +1360,6 @@ def _send_scheduled_report_email(
     cbom_dict: Dict[str, Any],
     vulnerabilities: Dict[str, Any],
 ) -> Optional[str]:
-    smtp_host = os.getenv("SMTP_HOST")
-    smtp_port = int(os.getenv("SMTP_PORT", "587"))
-    smtp_user = os.getenv("SMTP_USERNAME")
-    smtp_password = os.getenv("SMTP_PASSWORD")
-    smtp_from = os.getenv("SMTP_FROM_EMAIL") or smtp_user
-    smtp_use_tls = os.getenv("SMTP_USE_TLS", "1") != "0"
-
-    if not smtp_host or not smtp_from:
-        return "SMTP is not configured (set SMTP_HOST and SMTP_FROM_EMAIL/SMTP_USERNAME)"
-
     summary = cbom_dict.get("summary", {}) if cbom_dict else {}
     total_vulns = vulnerabilities.get("total_vulnerabilities", 0) if vulnerabilities else 0
 
@@ -1350,22 +1378,7 @@ def _send_scheduled_report_email(
         f"- Total Vulnerabilities: {total_vulns}\n"
     )
 
-    message = EmailMessage()
-    message["Subject"] = subject
-    message["From"] = smtp_from
-    message["To"] = schedule.delivery_email
-    message.set_content(body)
-
-    try:
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=20) as smtp:
-            if smtp_use_tls:
-                smtp.starttls()
-            if smtp_user and smtp_password:
-                smtp.login(smtp_user, smtp_password)
-            smtp.send_message(message)
-        return None
-    except Exception as exc:
-        return str(exc)
+    return _send_email(schedule.delivery_email, subject, body)
 
 
 def _run_scheduled_reports_cycle() -> None:
