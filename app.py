@@ -2370,7 +2370,7 @@ async def get_scan_result(scan_id: str, request: Request, db: Session = Depends(
 async def user_management_page(request: Request, db: Session = Depends(get_db)):
     """Admin user management dashboard"""
     user = _require_roles(request, db, ["admin"])
-    return _render_template(request, "user_management.html", {"current_user": {"username": user.username}})
+    return _render_template(request, "user_management.html", {"current_user": {"username": user.username, "role": user.role}})
 
 
 @app.get("/api/users")

@@ -6,19 +6,72 @@
     <title>User Management - Q-Shield</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .btn-secondary {
+            background: #ffffff;
+            border: 1px solid rgba(17, 24, 39, 0.14);
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            border-color: rgba(17, 24, 39, 0.24);
+        }
+
+        details.nav-dropdown > summary {
+            list-style: none;
+        }
+
+        details.nav-dropdown > summary::-webkit-details-marker {
+            display: none;
+        }
+    </style>
 </head>
 <body class="bg-gray-50">
     <div class="min-h-screen">
-        <!-- Navigation -->
-        <nav class="bg-white shadow">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between h-16">
-                    <div class="flex items-center">
-                        <h1 class="text-2xl font-bold text-gray-900">User Management</h1>
+        <!-- Navigation (shared structure/links with the rest of the app) -->
+        <nav class="sticky top-0 z-30 backdrop-blur-sm bg-white/70 border-b border-gray-200/70">
+            <div class="max-w-7xl mx-auto px-6 py-4">
+                <div class="glass-card rounded-2xl px-5 py-3 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-9 h-9 bg-gray-900 rounded-xl flex items-center justify-center shadow-sm">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                            </svg>
+                        </div>
+                        <span class="text-xl font-semibold text-gray-900">Q-Shield</span>
                     </div>
-                    <div class="flex items-center space-x-4">
-                        <span class="text-gray-700">{{ current_user.username }}</span>
-                        <a href="/logout" class="text-red-600 hover:text-red-800">Logout</a>
+                    <div class="hidden md:flex items-center space-x-8 text-sm font-medium text-gray-500">
+                        <details class="nav-dropdown relative">
+                            <summary class="cursor-pointer hover:text-gray-900 transition">Scanner ▾</summary>
+                            <div class="absolute top-full left-0 mt-2 w-44 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-50">
+                                <a href="/#scanner" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Main Scanner</a>
+                                <a href="/vendors" class="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Vendor Scanner</a>
+                            </div>
+                        </details>
+                        <a href="/asset-inventory" class="hover:text-gray-900 transition">Asset Inventory</a>
+                        <a href="/history" class="hover:text-gray-900 transition">History</a>
+                        <a href="/scheduled-reporting" class="hover:text-gray-900 transition">Scheduled Reports</a>
+                        <a href="/learn" class="hover:text-gray-900 transition">Learn</a>
+                        {% if current_user.role in ['admin', 'cyber_lead', 'it_lead', 'security_head'] %}
+                        <a href="/logs" class="hover:text-gray-900 transition">Logs</a>
+                        {% endif %}
+                        {% if current_user.role == 'admin' %}
+                        <a href="/user_management" class="text-gray-900">Users</a>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="hidden sm:inline text-xs text-gray-500 px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200">
+                            {{ current_user.username }} ({{ current_user.role }})
+                        </span>
+                        <a href="/" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Dashboard</a>
+                        <a href="/logout" class="btn-secondary text-gray-800 px-4 py-2 rounded-xl text-sm font-medium">Logout</a>
                     </div>
                 </div>
             </div>
