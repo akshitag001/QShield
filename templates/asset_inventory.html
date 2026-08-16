@@ -715,9 +715,59 @@
                 qarsHTML = '<tr><td colspan="5" class="py-6 text-center text-gray-400">No QARS scoring data for ' + host + '</td></tr>';
             }
 
+            // Security Status HTML — summarizes API security posture (auth/CORS/rate-limit
+            // coverage) and surfaces the specific issues behind the "Security Issues" count,
+            // plus any perimeter exposure (VPN/SSH), so the tab has real content instead of
+            // the static "No security data available." placeholder.
+            const requiresAuthCount = combinedApiEndpoints.filter(api => api.security_analysis?.requires_auth === true).length;
+            const corsEnabledCount = combinedApiEndpoints.filter(api => api.security_analysis?.cors_enabled === true).length;
+            let securityHTML = `
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-2">
+                    <div class="bg-white border border-gray-200 rounded-xl p-4 text-center">
+                        <div class="text-2xl font-bold text-gray-900">${combinedApiEndpoints.length}</div>
+                        <div class="text-xs text-gray-500 mt-1">APIs Reviewed</div>
+                    </div>
+                    <div class="bg-white border border-gray-200 rounded-xl p-4 text-center">
+                        <div class="text-2xl font-bold ${requiresAuthCount === combinedApiEndpoints.length && combinedApiEndpoints.length > 0 ? 'text-green-600' : 'text-gray-900'}">${requiresAuthCount}/${combinedApiEndpoints.length}</div>
+                        <div class="text-xs text-gray-500 mt-1">Require Authentication</div>
+                    </div>
+                    <div class="bg-white border border-gray-200 rounded-xl p-4 text-center">
+                        <div class="text-2xl font-bold ${corsEnabledCount > 0 ? 'text-amber-600' : 'text-gray-900'}">${corsEnabledCount}</div>
+                        <div class="text-xs text-gray-500 mt-1">CORS Enabled</div>
+                    </div>
+                    <div class="bg-white border border-gray-200 rounded-xl p-4 text-center">
+                        <div class="text-2xl font-bold ${publicIssues.length > 0 ? 'text-red-600' : 'text-green-600'}">${publicIssues.length}</div>
+                        <div class="text-xs text-gray-500 mt-1">Security Issues</div>
+                    </div>
+                </div>
+            `;
+            if (publicIssues.length > 0) {
+                securityHTML += `
+                    <div class="space-y-2">
+                        ${publicIssues.map(issue => {
+                            const isCritical = issue.toUpperCase().includes('CRITICAL');
+                            return `
+                                <div class="flex items-start gap-2 p-3 rounded-lg border text-sm ${isCritical ? 'bg-red-50 border-red-200 text-red-800' : 'bg-amber-50 border-amber-200 text-amber-800'}">
+                                    <span class="mt-0.5">${isCritical ? '⛔' : '⚠'}</span>
+                                    <span>${issue}</span>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            } else if (combinedApiEndpoints.length > 0) {
+                securityHTML += '<p class="text-emerald-700 text-sm font-medium text-center py-4">✓ No security issues detected across reviewed API endpoints.</p>';
+            } else {
+                securityHTML += '<p class="text-gray-400 text-sm text-center py-4">No API endpoints were discovered to analyze.</p>';
+            }
+            if (hasPerimeter) {
+                securityHTML += '<div class="mt-4 p-3 rounded-lg border bg-orange-50 border-orange-200 text-orange-800 text-sm">⚠ Network perimeter exposure detected — see Network Perimeter tab for details.</div>';
+            }
+
             domainsTable.innerHTML = domainsHTML;
             certsTable.innerHTML = certsHTML;
             apisTable.innerHTML = apisHTML;
+            document.getElementById('security-inventory').innerHTML = securityHTML;
             document.getElementById('perimeter-inventory').innerHTML = perimeterHTML;
             document.getElementById('qars-inventory').innerHTML = qarsHTML;
 

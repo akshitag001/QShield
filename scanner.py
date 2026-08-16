@@ -60,26 +60,39 @@ def _analyze_api_security(endpoint_url: str, timeout: int = 5) -> Dict[str, Any]
         ctx.verify_mode = ssl.CERT_NONE
         
         # First request - check authentication
+        probe_origin = "https://qshield-scan.local"
         req = urllib.request.Request(endpoint_url, method="GET")
         req.add_header("User-Agent", "Q-Shield-Scanner/1.0")
-        req.add_header("Origin", "https://qshield-scan.local")
-        
+        req.add_header("Origin", probe_origin)
+
         try:
             with urllib.request.urlopen(req, timeout=timeout, context=ctx) as response:
                 headers = response.headers
-                
+
                 # CORS Analysis
                 if headers.get("Access-Control-Allow-Origin"):
+                    allow_origin = headers.get("Access-Control-Allow-Origin")
+                    allow_credentials = headers.get("Access-Control-Allow-Credentials") == "true"
                     security_analysis["cors_enabled"] = True
-                    security_analysis["cors_allow_origin"] = headers.get("Access-Control-Allow-Origin")
-                    
-                    if headers.get("Access-Control-Allow-Origin") == "*":
+                    security_analysis["cors_allow_origin"] = allow_origin
+                    security_analysis["cors_allow_credentials"] = allow_credentials
+
+                    if allow_origin == "*":
                         security_analysis["issues"].append("CORS: Allow-Origin set to '*' (overly permissive)")
-                    
-                    if headers.get("Access-Control-Allow-Credentials") == "true":
-                        security_analysis["cors_allow_credentials"] = True
-                        if headers.get("Access-Control-Allow-Origin") == "*":
+                        if allow_credentials:
                             security_analysis["issues"].append("CRITICAL: CORS misconfiguration - * with credentials")
+                    elif allow_origin == probe_origin:
+                        # The server reflected back an arbitrary, unrecognized Origin we sent
+                        # (not its own domain, not a wildcard) — it's accepting any origin
+                        # dynamically, which is functionally as permissive as '*'.
+                        if allow_credentials:
+                            security_analysis["issues"].append(
+                                "CRITICAL: CORS misconfiguration - arbitrary Origin reflected with credentials enabled"
+                            )
+                        else:
+                            security_analysis["issues"].append(
+                                "CORS: arbitrary Origin reflected in Allow-Origin (overly permissive)"
+                            )
                 
                 # Rate Limiting
                 if headers.get("X-RateLimit-Limit") or headers.get("RateLimit-Limit"):
