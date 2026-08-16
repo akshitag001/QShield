@@ -675,6 +675,37 @@ def _send_email_via_resend(to_email: str, subject: str, body_text: str) -> Optio
         return str(exc)
 
 
+def _send_email_via_sendgrid(to_email: str, subject: str, body_text: str) -> Optional[str]:
+    """Send via the SendGrid HTTP API. Returns an error string on failure, None on success.
+
+    Like Resend, this is an HTTPS call so it isn't affected by hosts (Render's
+    web services included) blocking outbound SMTP. Requires SENDGRID_FROM_EMAIL
+    to be a Single Sender Verified address (or a verified domain) in SendGrid —
+    unverified senders are rejected by SendGrid itself, not by this code.
+    """
+    api_key = os.getenv("SENDGRID_API_KEY")
+    from_email = os.getenv("SENDGRID_FROM_EMAIL")
+    if not from_email:
+        return "SENDGRID_FROM_EMAIL is not set (must be a Single Sender Verified address in SendGrid)"
+    try:
+        resp = requests.post(
+            "https://api.sendgrid.com/v3/mail/send",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "personalizations": [{"to": [{"email": to_email}]}],
+                "from": {"email": from_email},
+                "subject": subject,
+                "content": [{"type": "text/plain", "value": body_text}],
+            },
+            timeout=20,
+        )
+        if resp.status_code >= 400:
+            return f"SendGrid API error {resp.status_code}: {resp.text[:300]}"
+        return None
+    except Exception as exc:
+        return str(exc)
+
+
 def _send_email_via_smtp(to_email: str, subject: str, body_text: str) -> Optional[str]:
     """Send via SMTP_* settings. Returns an error string on failure, None on success."""
     smtp_host = os.getenv("SMTP_HOST")
@@ -706,9 +737,13 @@ def _send_email_via_smtp(to_email: str, subject: str, body_text: str) -> Optiona
 
 
 def _send_email(to_email: str, subject: str, body_text: str) -> Optional[str]:
-    """Send an email, preferring the Resend HTTP API (RESEND_API_KEY) over SMTP
-    when both are configured — see _send_email_via_resend for why. Falls back
-    to SMTP so local/dev setups using only SMTP_* keep working unchanged."""
+    """Send an email via whichever provider is configured, in priority order:
+    SendGrid > Resend > SMTP. The HTTP-API providers (SendGrid/Resend) aren't
+    affected by hosts blocking outbound SMTP (Render's web services do).
+    SMTP remains the default fallback so local/dev setups using only SMTP_*
+    keep working unchanged."""
+    if os.getenv("SENDGRID_API_KEY"):
+        return _send_email_via_sendgrid(to_email, subject, body_text)
     if os.getenv("RESEND_API_KEY"):
         return _send_email_via_resend(to_email, subject, body_text)
     return _send_email_via_smtp(to_email, subject, body_text)
