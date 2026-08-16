@@ -247,6 +247,153 @@
             return scan?.cbom?.summary?.total_assets || 0;
         }
 
+        // ====================================================================
+        // Per-scan asset drill-down — the aggregate "Assets" figure per row
+        // (getAssetCount above) can be expanded into the actual asset list,
+        // sourced from the same scan.cbom already embedded in /api/history's
+        // response (no extra fetch needed).
+        // ====================================================================
+        const ASSET_TYPE_LABELS = {
+            certificate: 'Certificates',
+            cipher_suite: 'Cipher Suites',
+            key_exchange: 'Key Exchange',
+            protocol: 'Protocols (TLS Versions)',
+            hash_algorithm: 'Hash Algorithms',
+            symmetric_cipher: 'Symmetric Ciphers',
+            public_key: 'Public Keys',
+            api_endpoint: 'API Endpoints',
+            pqc_kem: 'PQC Key Encapsulation',
+            pqc_signature: 'PQC Signatures',
+            hybrid_key_exchange: 'Hybrid Key Exchange',
+        };
+
+        const ASSET_STRENGTH_STYLES = {
+            strong:     'bg-green-100 text-green-800',
+            acceptable: 'bg-blue-100 text-blue-800',
+            weak:       'bg-amber-100 text-amber-800',
+            broken:     'bg-red-100 text-red-800',
+            unknown:    'bg-gray-100 text-gray-700',
+        };
+
+        function assetStrengthBadge(strength) {
+            const key = String(strength || 'unknown').toLowerCase();
+            const cls = ASSET_STRENGTH_STYLES[key] || ASSET_STRENGTH_STYLES.unknown;
+            const label = key.charAt(0).toUpperCase() + key.slice(1);
+            return `<span class="px-2 py-1 ${cls} rounded text-xs font-semibold">${label}</span>`;
+        }
+
+        function assetQuantumBadge(isVulnerable) {
+            return isVulnerable
+                ? '<span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-semibold">⚠ Vulnerable</span>'
+                : '<span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">✓ Safe</span>';
+        }
+
+        window.historyRowExpanded = window.historyRowExpanded || {};
+        window.historyStrengthFilter = window.historyStrengthFilter || {};
+
+        const STRENGTH_BUTTON_STYLES = {
+            strong:     'bg-green-50 text-green-800 border-green-200 hover:bg-green-100',
+            acceptable: 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100',
+            weak:       'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100',
+            broken:     'bg-red-50 text-red-800 border-red-200 hover:bg-red-100',
+        };
+
+        // Strength counts for one scan, computed from its CBOM (falls back to
+        // counting endpoint.assets directly if the summary block is missing).
+        function getScanStrengthCounts(scan) {
+            const summaryStrength = scan?.cbom?.summary?.assets_by_strength;
+            if (summaryStrength) return summaryStrength;
+            const counts = { strong: 0, acceptable: 0, weak: 0, broken: 0 };
+            const endpoints = (scan?.cbom && Array.isArray(scan.cbom.endpoints)) ? scan.cbom.endpoints : [];
+            endpoints.forEach(ep => (ep.assets || []).forEach(asset => {
+                const key = String(asset.strength || '').toLowerCase();
+                if (key in counts) counts[key] += 1;
+            }));
+            return counts;
+        }
+
+        function renderScanStrengthButtons(scan) {
+            const counts = getScanStrengthCounts(scan);
+            const active = window.historyStrengthFilter[scan.scan_id] || null;
+            const keys = ['strong', 'acceptable', 'weak', 'broken'];
+            const allBtn = `
+                <button onclick="window.historyStrengthFilter['${scan.scan_id}'] = null; renderHistoryList(window.__lastHistoryScans);"
+                    class="px-3 py-1 rounded-lg text-xs font-semibold border transition-colors ${!active ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}">
+                    All
+                </button>`;
+            const strengthBtns = keys.map(key => {
+                const isActive = active === key;
+                const label = key.charAt(0).toUpperCase() + key.slice(1);
+                const cls = isActive ? 'ring-2 ring-offset-1 ring-gray-400 ' + STRENGTH_BUTTON_STYLES[key] : STRENGTH_BUTTON_STYLES[key];
+                return `
+                    <button onclick="window.historyStrengthFilter['${scan.scan_id}'] = '${key}'; renderHistoryList(window.__lastHistoryScans);"
+                        class="px-3 py-1 rounded-lg text-xs font-semibold border transition-colors ${cls}">
+                        ${label} (${counts[key] || 0})
+                    </button>`;
+            }).join('');
+            return `<div class="flex flex-wrap gap-2 mb-4">${allBtn}${strengthBtns}</div>`;
+        }
+
+        function renderScanAssetBreakdown(scan) {
+            const endpoints = (scan?.cbom && Array.isArray(scan.cbom.endpoints)) ? scan.cbom.endpoints : [];
+            if (!endpoints.length) {
+                return '<p class="text-sm text-gray-400">No CBOM asset data recorded for this scan.</p>';
+            }
+
+            const strengthFilter = window.historyStrengthFilter[scan.scan_id] || null;
+            const strengthButtonsHtml = renderScanStrengthButtons(scan);
+
+            const endpointsHtml = endpoints.map(ep => {
+                const assets = (Array.isArray(ep.assets) ? ep.assets : []).filter(
+                    asset => !strengthFilter || String(asset.strength || '').toLowerCase() === strengthFilter
+                );
+                if (!assets.length) {
+                    return `<div class="mb-4"><h6 class="font-semibold text-gray-800 text-sm mb-2">${ep.endpoint || 'Unknown endpoint'}</h6><p class="text-xs text-gray-400">No ${strengthFilter ? strengthFilter + ' ' : ''}assets recorded.</p></div>`;
+                }
+                const byType = {};
+                assets.forEach(asset => {
+                    const type = String(asset.asset_type || 'unknown').toLowerCase();
+                    (byType[type] = byType[type] || []).push(asset);
+                });
+
+                const tables = Object.entries(byType).map(([type, items]) => `
+                    <div class="mb-4">
+                        <p class="text-xs font-semibold text-gray-600 mb-1">${ASSET_TYPE_LABELS[type] || type} <span class="text-gray-400 font-normal">(${items.length})</span></p>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="text-left text-xs text-gray-500 border-b border-gray-200">
+                                        <th class="pb-1 font-medium">Name</th>
+                                        <th class="pb-1 font-medium">Strength</th>
+                                        <th class="pb-1 font-medium">Quantum Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${items.slice(0, 8).map(asset => `
+                                        <tr class="border-b border-gray-100">
+                                            <td class="py-1.5 pr-3 text-gray-700 text-sm break-all">${asset.name || '-'}</td>
+                                            <td class="py-1.5 pr-3">${assetStrengthBadge(asset.strength)}</td>
+                                            <td class="py-1.5">${assetQuantumBadge(!!asset.quantum_vulnerable)}</td>
+                                        </tr>
+                                    `).join('')}
+                                    ${items.length > 8 ? `<tr><td colspan="3" class="py-1.5 text-xs text-gray-400">+ ${items.length - 8} more (see full inventory)</td></tr>` : ''}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `).join('');
+
+                return `
+                    <div class="mb-6">
+                        <h6 class="font-semibold text-gray-900 text-sm mb-2">${ep.endpoint || 'Unknown endpoint'}</h6>
+                        ${tables}
+                    </div>
+                `;
+            }).join('');
+
+            return strengthButtonsHtml + endpointsHtml;
+        }
+
         function countFindings(scan) {
             const vulnerabilities = scan?.vulnerabilities?.vulnerabilities || [];
             let critical = 0;
@@ -389,6 +536,48 @@
             });
         }
 
+        window.__lastHistoryScans = [];
+
+        function renderHistoryList(scans) {
+            const historyContainer = document.getElementById('scanHistory');
+            if (!historyContainer) return;
+
+            window.__lastHistoryScans = scans;
+
+            historyContainer.innerHTML = scans.map(scan => {
+                const expanded = !!window.historyRowExpanded[scan.scan_id];
+                return `
+                    <div class="bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition overflow-hidden">
+                        <div class="flex items-center justify-between p-3 cursor-pointer" onclick="window.location.href='/asset-inventory?scan_id=${scan.scan_id}'">
+                            <div class="flex items-center">
+                                <span class="w-2 h-2 rounded-full mr-3 ${scan.status === 'completed' ? 'bg-emerald-400' : 'bg-red-400'}"></span>
+                                <div>
+                                    <span class="font-medium text-gray-900">${scan.target}</span>
+                                    ${isAdminRole && scan.owner_username ? `<p class="text-xs text-gray-500">Scanned by: ${scan.owner_username}</p>` : ''}
+                                    <p class="text-xs text-gray-400">${formatIST(scan.started_at)}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <div class="text-right text-xs text-gray-500">
+                                    <div>Risk: ${getRiskScore(scan)}</div>
+                                    <div>Assets: ${getAssetCount(scan)}</div>
+                                </div>
+                                <button onclick="event.stopPropagation(); window.historyRowExpanded['${scan.scan_id}'] = !window.historyRowExpanded['${scan.scan_id}']; renderHistoryList(window.__lastHistoryScans);"
+                                    class="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 whitespace-nowrap">
+                                    ${expanded ? 'Hide Assets' : 'View Assets'}
+                                </button>
+                            </div>
+                        </div>
+                        ${expanded ? `
+                            <div class="border-t border-gray-100 bg-gray-50 p-4">
+                                ${renderScanAssetBreakdown(scan)}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
         async function refreshHistory() {
             const historyContainer = document.getElementById('scanHistory');
             if (!historyContainer) return;
@@ -412,23 +601,7 @@
 
                 updateSummary(scans);
                 renderCharts(scans);
-
-                historyContainer.innerHTML = scans.map(scan => `
-                    <div class="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition cursor-pointer" onclick="window.location.href='/asset-inventory?scan_id=${scan.scan_id}'">
-                        <div class="flex items-center">
-                            <span class="w-2 h-2 rounded-full mr-3 ${scan.status === 'completed' ? 'bg-emerald-400' : 'bg-red-400'}"></span>
-                            <div>
-                                <span class="font-medium text-gray-900">${scan.target}</span>
-                                ${isAdminRole && scan.owner_username ? `<p class="text-xs text-gray-500">Scanned by: ${scan.owner_username}</p>` : ''}
-                                <p class="text-xs text-gray-400">${formatIST(scan.started_at)}</p>
-                            </div>
-                        </div>
-                        <div class="text-right text-xs text-gray-500">
-                            <div>Risk: ${getRiskScore(scan)}</div>
-                            <div>Assets: ${getAssetCount(scan)}</div>
-                        </div>
-                    </div>
-                `).join('');
+                renderHistoryList(scans);
             } catch (error) {
                 historyContainer.innerHTML = '<p class="text-gray-500 text-sm">Error while loading scan history.</p>';
             }

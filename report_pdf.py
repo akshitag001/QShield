@@ -121,6 +121,17 @@ def _risk_color(level: str):
     }.get(level, colors.grey)
 
 
+def _strength_risk_tier(strength: str) -> str:
+    """Map a CryptoAsset strength (strong/acceptable/weak/broken/unknown) to the
+    CRITICAL/HIGH/MEDIUM/LOW vocabulary already used by _risk_color for display."""
+    return {
+        "broken": "CRITICAL",
+        "weak": "HIGH",
+        "acceptable": "MEDIUM",
+        "strong": "LOW",
+    }.get((strength or "").lower(), "MEDIUM")
+
+
 # ---------------------------------------------------------------------------
 # Header / Footer
 # ---------------------------------------------------------------------------
@@ -363,10 +374,76 @@ def generate_pdf(
     story.append(tls_table)
 
     # ============================================================
-    # SECTION 3 — Quantum Vulnerabilities
+    # SECTION 3 — Cryptographic Asset Inventory (per endpoint)
+    # Every asset behind the Section 1 "Total Cryptographic Assets" figure —
+    # not just the aggregate count — grouped by endpoint and asset type.
     # ============================================================
     story.append(Spacer(1, 0.3 * cm))
-    story.append(Paragraph("3. Quantum Vulnerability Findings", Sec))
+    story.append(Paragraph("3. Cryptographic Asset Inventory", Sec))
+    story.append(HRFlowable(width="100%", thickness=1, color=BRAND_DARK, spaceAfter=6))
+
+    if not endpoints:
+        story.append(Paragraph("No endpoint asset data available for this scan.", Body))
+    else:
+        for endpoint in endpoints:
+            ep_name = endpoint.get("endpoint") or "Unknown endpoint"
+            ep_ip = endpoint.get("ip_address") or endpoint.get("ip") or "N/A"
+            ep_port = endpoint.get("port") or "N/A"
+            assets = endpoint.get("assets", []) or []
+
+            story.append(Paragraph(f"{ep_name}  ({ep_ip}:{ep_port})", SubH))
+
+            if not assets:
+                story.append(Paragraph("No cryptographic assets discovered on this endpoint.", Small))
+                continue
+
+            asset_data = [["Asset Type", "Name", "Strength", "Quantum Vulnerable"]]
+            for asset in assets:
+                asset_type = str(asset.get("asset_type") or "unknown").replace("_", " ").title()
+                name = str(asset.get("name") or "-")
+                strength = str(asset.get("strength") or "unknown")
+                q_vuln = bool(asset.get("quantum_vulnerable"))
+                asset_data.append([
+                    asset_type,
+                    Paragraph(name, Small),
+                    strength.title(),
+                    "Yes" if q_vuln else "No",
+                ])
+
+            col_w = [3.2 * cm, 7.3 * cm, 2.5 * cm, 3.5 * cm]
+            asset_table = Table(asset_data, colWidths=col_w, repeatRows=1)
+
+            ts = [
+                ("BACKGROUND",     (0, 0), (-1, 0), BRAND_DARK),
+                ("TEXTCOLOR",      (0, 0), (-1, 0), colors.white),
+                ("FONTNAME",       (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE",       (0, 0), (-1, -1), 8),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [BG_LIGHT, colors.white]),
+                ("GRID",           (0, 0), (-1, -1), 0.4, BORDER_COLOR),
+                ("VALIGN",         (0, 0), (-1, -1), "TOP"),
+                ("TOPPADDING",     (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING",  (0, 0), (-1, -1), 4),
+                ("LEFTPADDING",    (0, 0), (-1, -1), 5),
+            ]
+            for row_i, asset in enumerate(assets, 1):
+                strength = str(asset.get("strength") or "unknown")
+                tier = _strength_risk_tier(strength)
+                c = _risk_color(tier)
+                ts.append(("TEXTCOLOR", (2, row_i), (2, row_i), c))
+                ts.append(("FONTNAME", (2, row_i), (2, row_i), "Helvetica-Bold"))
+                if bool(asset.get("quantum_vulnerable")):
+                    ts.append(("TEXTCOLOR", (3, row_i), (3, row_i), RISK_CRITICAL))
+                    ts.append(("FONTNAME", (3, row_i), (3, row_i), "Helvetica-Bold"))
+
+            asset_table.setStyle(TableStyle(ts))
+            story.append(asset_table)
+            story.append(Spacer(1, 0.3 * cm))
+
+    # ============================================================
+    # SECTION 4 — Quantum Vulnerabilities
+    # ============================================================
+    story.append(Spacer(1, 0.3 * cm))
+    story.append(Paragraph("4. Quantum Vulnerability Findings", Sec))
     story.append(HRFlowable(width="100%", thickness=1, color=BRAND_DARK, spaceAfter=6))
 
     if not vulns:
@@ -413,10 +490,10 @@ def generate_pdf(
         story.append(vuln_table)
 
     # ============================================================
-    # SECTION 4 — Remediation Roadmap
+    # SECTION 5 — Remediation Roadmap
     # ============================================================
     story.append(Spacer(1, 0.4 * cm))
-    story.append(Paragraph("4. Remediation Roadmap", Sec))
+    story.append(Paragraph("5. Remediation Roadmap", Sec))
     story.append(HRFlowable(width="100%", thickness=1, color=BRAND_DARK, spaceAfter=6))
 
     roadmap = [
@@ -444,10 +521,10 @@ def generate_pdf(
     story.append(road_table)
 
     # ============================================================
-    # SECTION 5 — Audit Trail
+    # SECTION 6 — Audit Trail
     # ============================================================
     story.append(Spacer(1, 0.4 * cm))
-    story.append(Paragraph("5. Audit Trail", Sec))
+    story.append(Paragraph("6. Audit Trail", Sec))
     story.append(HRFlowable(width="100%", thickness=1, color=BRAND_DARK, spaceAfter=6))
 
     story.append(Paragraph(

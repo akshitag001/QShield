@@ -173,6 +173,7 @@
                 <div class="glass-card card-lift rounded-3xl p-8">
                     <div class="flex gap-4 border-b border-gray-200 mb-6 overflow-x-auto">
                         <button onclick="switchInventoryTab('domains')" class="inventory-tab-btn active px-4 py-3 font-medium text-gray-700 border-b-2 border-gray-900 hover:text-gray-900 transition whitespace-nowrap">Domains</button>
+                        <button onclick="switchInventoryTab('assets')" class="inventory-tab-btn px-4 py-3 font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition whitespace-nowrap">All Crypto Assets</button>
                         <button onclick="switchInventoryTab('api')" class="inventory-tab-btn px-4 py-3 font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition whitespace-nowrap">API Endpoints</button>
                         <button onclick="switchInventoryTab('certificates')" class="inventory-tab-btn px-4 py-3 font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition whitespace-nowrap">Certificates</button>
                         <button onclick="switchInventoryTab('security')" class="inventory-tab-btn px-4 py-3 font-medium text-gray-500 border-b-2 border-transparent hover:text-gray-700 transition whitespace-nowrap">Security Status</button>
@@ -195,6 +196,53 @@
                                 </thead>
                                 <tbody id="domains-inventory">
                                     <tr><td colspan="6" class="py-8 text-center text-gray-400">Load a scan to populate inventory.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="assets-tab" class="inventory-tab hidden">
+                        <p class="text-xs text-gray-500 mb-4">Every cryptographic asset recorded in this scan's CBOM — certificates, cipher suites, key exchange, protocols, hashes, symmetric ciphers, public keys, API endpoints, and PQC/hybrid assets.</p>
+                        <div class="flex flex-wrap gap-3 mb-4">
+                            <input id="assetSearchInput" type="text" placeholder="Search by name..." oninput="renderCryptoAssetsTable()"
+                                class="flex-1 min-w-[180px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <select id="assetTypeFilter" onchange="renderCryptoAssetsTable()" class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+                                <option value="">All Types</option>
+                                <option value="certificate">Certificates</option>
+                                <option value="cipher_suite">Cipher Suites</option>
+                                <option value="key_exchange">Key Exchange</option>
+                                <option value="protocol">Protocols (TLS Versions)</option>
+                                <option value="hash_algorithm">Hash Algorithms</option>
+                                <option value="symmetric_cipher">Symmetric Ciphers</option>
+                                <option value="public_key">Public Keys</option>
+                                <option value="api_endpoint">API Endpoints</option>
+                                <option value="pqc_kem">PQC Key Encapsulation</option>
+                                <option value="pqc_signature">PQC Signatures</option>
+                                <option value="hybrid_key_exchange">Hybrid Key Exchange</option>
+                            </select>
+                            <select id="assetStrengthFilter" onchange="renderCryptoAssetsTable()" class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+                                <option value="">All Strengths</option>
+                                <option value="strong">Strong</option>
+                                <option value="acceptable">Acceptable</option>
+                                <option value="weak">Weak</option>
+                                <option value="broken">Broken</option>
+                                <option value="unknown">Unknown</option>
+                            </select>
+                        </div>
+                        <p id="assetsCountLabel" class="text-xs text-gray-500 mb-2">0 assets</p>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-gray-200">
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Type</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Name</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Endpoint</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Strength</th>
+                                        <th class="text-left py-3 px-4 font-semibold text-gray-700">Quantum Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="assets-inventory-body">
+                                    <tr><td colspan="5" class="py-8 text-center text-gray-400">Load a scan to populate inventory.</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -328,6 +376,95 @@
         let latestScanId = null;
         let latestCbomData = null;
         let latestCombinedCbom = null;
+        let allInventoryAssets = [];
+
+        const ASSET_TYPE_LABELS = {
+            certificate: 'Certificates',
+            cipher_suite: 'Cipher Suites',
+            key_exchange: 'Key Exchange',
+            protocol: 'Protocols (TLS Versions)',
+            hash_algorithm: 'Hash Algorithms',
+            symmetric_cipher: 'Symmetric Ciphers',
+            public_key: 'Public Keys',
+            api_endpoint: 'API Endpoints',
+            pqc_kem: 'PQC Key Encapsulation',
+            pqc_signature: 'PQC Signatures',
+            hybrid_key_exchange: 'Hybrid Key Exchange',
+        };
+
+        const ASSET_STRENGTH_STYLES = {
+            strong:     'bg-green-100 text-green-800',
+            acceptable: 'bg-blue-100 text-blue-800',
+            weak:       'bg-amber-100 text-amber-800',
+            broken:     'bg-red-100 text-red-800',
+            unknown:    'bg-gray-100 text-gray-700',
+        };
+
+        function assetStrengthBadge(strength) {
+            const key = String(strength || 'unknown').toLowerCase();
+            const cls = ASSET_STRENGTH_STYLES[key] || ASSET_STRENGTH_STYLES.unknown;
+            const label = key.charAt(0).toUpperCase() + key.slice(1);
+            return `<span class="px-2 py-1 ${cls} rounded text-xs font-semibold">${label}</span>`;
+        }
+
+        function assetQuantumBadge(isVulnerable) {
+            return isVulnerable
+                ? '<span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-semibold">⚠ Vulnerable</span>'
+                : '<span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">✓ Safe</span>';
+        }
+
+        // Flattens every asset across every endpoint in a CBOM into one list,
+        // tagging each with its source endpoint — powers the "All Crypto
+        // Assets" tab's filter/search table.
+        function collectAllInventoryAssets(cbom) {
+            const endpoints = (cbom && Array.isArray(cbom.endpoints)) ? cbom.endpoints : [];
+            const flat = [];
+            endpoints.forEach(ep => {
+                (ep.assets || []).forEach(asset => {
+                    flat.push({ ...asset, _endpoint: ep.endpoint || 'Unknown' });
+                });
+            });
+            return flat;
+        }
+
+        function renderCryptoAssetsTable() {
+            const body = document.getElementById('assets-inventory-body');
+            const countLabel = document.getElementById('assetsCountLabel');
+            if (!body) return;
+
+            const typeFilter = document.getElementById('assetTypeFilter')?.value || '';
+            const strengthFilter = document.getElementById('assetStrengthFilter')?.value || '';
+            const search = (document.getElementById('assetSearchInput')?.value || '').toLowerCase().trim();
+
+            const filtered = allInventoryAssets.filter(asset => {
+                const type = String(asset.asset_type || 'unknown').toLowerCase();
+                const strength = String(asset.strength || 'unknown').toLowerCase();
+                if (typeFilter && type !== typeFilter) return false;
+                if (strengthFilter && strength !== strengthFilter) return false;
+                if (search && !String(asset.name || '').toLowerCase().includes(search)) return false;
+                return true;
+            });
+
+            countLabel.textContent = `${filtered.length} of ${allInventoryAssets.length} assets`;
+
+            if (!filtered.length) {
+                body.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-gray-400">No assets match the current filters.</td></tr>';
+                return;
+            }
+
+            body.innerHTML = filtered.map(asset => {
+                const type = String(asset.asset_type || 'unknown').toLowerCase();
+                return `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50">
+                        <td class="py-3 px-4 text-gray-600 text-xs">${ASSET_TYPE_LABELS[type] || type}</td>
+                        <td class="py-3 px-4 font-medium text-gray-900 text-sm break-all">${asset.name || '-'}</td>
+                        <td class="py-3 px-4 text-gray-500 text-xs">${asset._endpoint}</td>
+                        <td class="py-3 px-4">${assetStrengthBadge(asset.strength)}</td>
+                        <td class="py-3 px-4">${assetQuantumBadge(!!asset.quantum_vulnerable)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
 
         const formatIST = (dateString) => {
             if (!dateString) return 'Never';
@@ -662,6 +799,8 @@
                     latestCombinedCbom = null;
                     populateAssetInventory(scan.result);
                     setStatsFromCbom(latestCbomData);
+                    allInventoryAssets = collectAllInventoryAssets(latestCbomData);
+                    renderCryptoAssetsTable();
                     document.getElementById('downloadContainer').classList.remove('hidden');
                 }
             } catch (error) {

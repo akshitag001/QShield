@@ -456,6 +456,9 @@
                     <div class="h-64">
                         <canvas id="strengthChart"></canvas>
                     </div>
+                    <p class="text-xs text-gray-500 mt-4 text-center">Click a segment, or a category below, to view the assets behind that count.</p>
+                    <div id="strengthCategoryButtons" class="flex flex-wrap justify-center gap-2 mt-3"></div>
+                    <div id="strengthDrilldownPanel" class="hidden mt-6 pt-6 border-t border-gray-200"></div>
                 </div>
             </div>
         </div>
@@ -746,6 +749,129 @@
         const currentUserRole = "{{ current_user.role }}";
         const adminRoles = ['admin', 'cyber_lead', 'it_lead', 'security_head'];
         const isAdminRole = adminRoles.includes(currentUserRole);
+
+        // ====================================================================
+        // Shared asset-breakdown rendering (CBOM endpoint.assets[])
+        // Used by: single-domain scan result, subdomain/multi-target report,
+        // and the Security Strength drill-down. Keeps every "count" in the UI
+        // backed by an actual, browsable list of the assets behind it.
+        // ====================================================================
+        const ASSET_STRENGTH_STYLES = {
+            strong:     'bg-green-100 text-green-800',
+            acceptable: 'bg-blue-100 text-blue-800',
+            weak:       'bg-amber-100 text-amber-800',
+            broken:     'bg-red-100 text-red-800',
+            unknown:    'bg-gray-100 text-gray-700',
+        };
+
+        function assetStrengthBadge(strength) {
+            const key = String(strength || 'unknown').toLowerCase();
+            const cls = ASSET_STRENGTH_STYLES[key] || ASSET_STRENGTH_STYLES.unknown;
+            const label = key.charAt(0).toUpperCase() + key.slice(1);
+            return `<span class="px-2 py-1 ${cls} rounded text-xs font-semibold">${label}</span>`;
+        }
+
+        function assetQuantumBadge(isVulnerable) {
+            return isVulnerable
+                ? '<span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-semibold">⚠ Vulnerable</span>'
+                : '<span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">✓ Safe</span>';
+        }
+
+        const ASSET_TYPE_LABELS = {
+            certificate: 'Certificates',
+            cipher_suite: 'Cipher Suites',
+            key_exchange: 'Key Exchange',
+            protocol: 'Protocols (TLS Versions)',
+            hash_algorithm: 'Hash Algorithms',
+            symmetric_cipher: 'Symmetric Ciphers',
+            public_key: 'Public Keys',
+            api_endpoint: 'API Endpoints',
+            pqc_kem: 'PQC Key Encapsulation',
+            pqc_signature: 'PQC Signatures',
+            hybrid_key_exchange: 'Hybrid Key Exchange',
+        };
+
+        window.assetBreakdownExpanded = window.assetBreakdownExpanded || {};
+
+        // Renders one collapsible table per asset_type found in `assets` (grouped,
+        // matching the existing Cipher Suites "+N more" pattern). `keyPrefix` scopes
+        // the expand/collapse state so multiple endpoints/sections don't collide.
+        // `toggleExpr` is a JS expression (string) evaluated on click to re-render
+        // the section the button lives in — mirrors how the cipher-suites toggle
+        // re-invokes displayScanResult() on click.
+        function renderAssetTypeBreakdown(assets, keyPrefix, toggleExpr, skipTypes = []) {
+            if (!Array.isArray(assets) || !assets.length) {
+                return '<p class="text-sm text-gray-400">No additional cryptographic assets recorded.</p>';
+            }
+
+            const skip = new Set(skipTypes);
+            const byType = {};
+            assets.forEach(asset => {
+                const type = String(asset.asset_type || 'unknown').toLowerCase();
+                if (skip.has(type)) return;
+                (byType[type] = byType[type] || []).push(asset);
+            });
+
+            const types = Object.keys(byType);
+            if (!types.length) {
+                return '<p class="text-sm text-gray-400">No additional cryptographic assets recorded.</p>';
+            }
+
+            return types.map(type => {
+                const items = byType[type];
+                const label = ASSET_TYPE_LABELS[type] || type;
+                const expandKey = `${keyPrefix}:${type}`;
+                const expanded = !!window.assetBreakdownExpanded[expandKey];
+                const visible = expanded ? items : items.slice(0, 8);
+
+                const rows = visible.map(asset => `
+                    <tr class="border-b border-gray-100">
+                        <td class="py-2 pr-3 text-gray-700 text-sm break-all">${asset.name || '-'}</td>
+                        <td class="py-2 pr-3">${assetStrengthBadge(asset.strength)}</td>
+                        <td class="py-2">${assetQuantumBadge(!!asset.quantum_vulnerable)}</td>
+                    </tr>
+                `).join('');
+
+                const moreBtn = items.length > 8 ? `
+                    <div class="text-center mt-2">
+                        <button onclick="window.assetBreakdownExpanded['${expandKey}'] = !window.assetBreakdownExpanded['${expandKey}']; ${toggleExpr}"
+                            class="px-3 py-1.5 text-xs font-medium text-blue-700 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors">
+                            ${expanded ? `Hide ${items.length - 8}` : `+ ${items.length - 8} more`}
+                        </button>
+                    </div>` : '';
+
+                return `
+                    <div class="mb-6">
+                        <h5 class="font-semibold text-gray-800 mb-2 text-sm">${label} <span class="text-gray-500 font-normal">(${items.length})</span></h5>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="text-left text-xs text-gray-500 border-b border-gray-200">
+                                        <th class="pb-2 font-medium">Name</th>
+                                        <th class="pb-2 font-medium">Strength</th>
+                                        <th class="pb-2 font-medium">Quantum Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${rows}</tbody>
+                            </table>
+                            ${moreBtn}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Finds the CBOM endpoint entry matching a scan result's host/port —
+        // shared lookup used by displayScanResult, populateAssetInventory, etc.
+        function findCbomEndpoint(cbom, host, port) {
+            if (!cbom || !Array.isArray(cbom.endpoints)) return null;
+            const hostKey = `${host}`;
+            const hostPortKey = `${host}:${port}`;
+            return cbom.endpoints.find(e => {
+                const endpointValue = (e.endpoint || '').toString();
+                return endpointValue === hostKey || endpointValue === hostPortKey || endpointValue.startsWith(`${hostKey}:`);
+            }) || null;
+        }
 
         class QuantumLatticeRenderer {
             constructor(canvas, metadataContainer) {
@@ -1271,6 +1397,7 @@
                 options: { ...chartDefaults, cutout: '70%' }
             });
 
+            const strengthOrder = ['strong', 'acceptable', 'weak', 'broken'];
             strengthChart = new Chart(document.getElementById('strengthChart'), {
                 type: 'doughnut',
                 data: {
@@ -1282,7 +1409,18 @@
                         spacing: 2
                     }]
                 },
-                options: { ...chartDefaults, cutout: '70%' }
+                options: {
+                    ...chartDefaults,
+                    cutout: '70%',
+                    onClick: (evt, elements) => {
+                        if (elements && elements.length) {
+                            showStrengthDrilldown(strengthOrder[elements[0].index]);
+                        }
+                    },
+                    onHover: (evt, elements) => {
+                        evt.native.target.style.cursor = elements && elements.length ? 'pointer' : 'default';
+                    }
+                }
             });
         }
 
@@ -1648,8 +1786,23 @@
                         ` : ''}
                     </div>
                 </div>
+
+                <div class="mt-8">
+                    <h4 class="font-semibold text-gray-900 mb-4">Other Cryptographic Assets</h4>
+                    <p class="text-xs text-gray-500 mb-4">Key exchange, hashes, ciphers, public keys, and PQC/hybrid assets from this endpoint's CBOM — certificates, cipher suites, and API endpoints are covered above and in the Asset Inventory tabs.</p>
+                    ${renderAssetTypeBreakdown(
+                        (findCbomEndpoint(latestCbomData, result.host, result.port) || {}).assets,
+                        `scan:${result.host}`,
+                        `displayScanResult(window.__lastScanResult, window.__lastVulnerabilityData)`,
+                        ['certificate', 'cipher_suite', 'api_endpoint']
+                    )}
+                </div>
             `;
-            
+
+            // Keep a stable reference for the "+N more" toggle buttons above to re-render against.
+            window.__lastScanResult = result;
+            window.__lastVulnerabilityData = vulnerabilityData;
+
             // Add event listener for cipher suites toggle button
             document.addEventListener('click', (e) => {
                 if (e.target.classList.contains('toggle-cipher-suites')) {
@@ -1659,7 +1812,7 @@
                     displayScanResult(result, vulnerabilityData);
                 }
             });
-            
+
             document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
 
             latestPrimaryTarget = result.host;
@@ -1856,12 +2009,116 @@
                 ];
                 strengthChart.update();
             }
+
+            // Track which CBOM currently backs the strength chart so a click can
+            // drill down into the actual assets, regardless of whether the chart
+            // was populated from a single scan or a combined subdomain scan.
+            window.latestChartCbom = cbom;
+            renderStrengthCategoryButtons(strength);
+            const drilldownPanel = document.getElementById('strengthDrilldownPanel');
+            if (drilldownPanel) drilldownPanel.classList.add('hidden');
         }
+
+        const STRENGTH_BUTTON_STYLES = {
+            strong:     'bg-green-50 text-green-800 border-green-200 hover:bg-green-100',
+            acceptable: 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100',
+            weak:       'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100',
+            broken:     'bg-red-50 text-red-800 border-red-200 hover:bg-red-100',
+        };
+
+        function renderStrengthCategoryButtons(strength) {
+            const container = document.getElementById('strengthCategoryButtons');
+            if (!container) return;
+            const keys = ['strong', 'acceptable', 'weak', 'broken'];
+            container.innerHTML = keys.map(key => {
+                const count = strength[key] || 0;
+                const label = key.charAt(0).toUpperCase() + key.slice(1);
+                return `
+                    <button onclick="showStrengthDrilldown('${key}')"
+                        class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${STRENGTH_BUTTON_STYLES[key]}">
+                        ${label} (${count})
+                    </button>
+                `;
+            }).join('');
+        }
+
+        // Pools assets from every endpoint in the CBOM currently backing the
+        // Security Strength chart, filters to the clicked strength bucket, and
+        // renders them (grouped by type, tagged with their source endpoint) —
+        // the same underlying data the chart's counts were computed from.
+        function showStrengthDrilldown(strengthKey) {
+            const panel = document.getElementById('strengthDrilldownPanel');
+            if (!panel) return;
+
+            const cbom = window.latestChartCbom;
+            const endpoints = (cbom && Array.isArray(cbom.endpoints)) ? cbom.endpoints : [];
+            const matched = [];
+            endpoints.forEach(ep => {
+                (ep.assets || []).forEach(asset => {
+                    if (String(asset.strength || '').toLowerCase() === strengthKey) {
+                        matched.push({ ...asset, _endpoint: ep.endpoint || 'Unknown' });
+                    }
+                });
+            });
+
+            const label = strengthKey.charAt(0).toUpperCase() + strengthKey.slice(1);
+
+            if (!matched.length) {
+                panel.innerHTML = `<p class="text-sm text-gray-400">No ${label.toLowerCase()} assets found in the current scan data.</p>`;
+                panel.classList.remove('hidden');
+                return;
+            }
+
+            const byType = {};
+            matched.forEach(asset => {
+                const type = String(asset.asset_type || 'unknown').toLowerCase();
+                (byType[type] = byType[type] || []).push(asset);
+            });
+
+            const tableHtml = Object.entries(byType).map(([type, items]) => `
+                <div class="mb-6">
+                    <h5 class="font-semibold text-gray-800 mb-2 text-sm">${ASSET_TYPE_LABELS[type] || type} <span class="text-gray-500 font-normal">(${items.length})</span></h5>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="text-left text-xs text-gray-500 border-b border-gray-200">
+                                    <th class="pb-2 font-medium">Name</th>
+                                    <th class="pb-2 font-medium">Endpoint</th>
+                                    <th class="pb-2 font-medium">Quantum Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${items.map(asset => `
+                                    <tr class="border-b border-gray-100">
+                                        <td class="py-2 pr-3 text-gray-700 text-sm break-all">${asset.name || '-'}</td>
+                                        <td class="py-2 pr-3 text-gray-500 text-xs">${asset._endpoint}</td>
+                                        <td class="py-2">${assetQuantumBadge(!!asset.quantum_vulnerable)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `).join('');
+
+            panel.innerHTML = `
+                <div class="flex items-center justify-between mb-3">
+                    <h4 class="font-semibold text-gray-900">${label} Assets <span class="text-gray-500 font-normal">(${matched.length})</span></h4>
+                    <button onclick="document.getElementById('strengthDrilldownPanel').classList.add('hidden')" class="text-xs text-gray-500 hover:text-gray-800">Close</button>
+                </div>
+                ${tableHtml}
+            `;
+            panel.classList.remove('hidden');
+            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        window.subdomainRowExpanded = window.subdomainRowExpanded || {};
 
         function renderSubdomainScanReport(data) {
             const output = document.getElementById('subdomainScanOutput');
             const vulnerabilities = data.vulnerabilities || { total_vulnerabilities: 0 };
             const endpoints = (data.cbom && data.cbom.endpoints) ? data.cbom.endpoints : [];
+            window.__lastSubdomainReportData = data;
 
             output.innerHTML = `
                 <div class="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
@@ -1875,19 +2132,48 @@
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="text-left text-gray-500 border-b border-gray-200">
+                                    <th class="pb-2 font-medium"></th>
                                     <th class="pb-2 font-medium">Endpoint</th>
                                     <th class="pb-2 font-medium">TLS Versions</th>
                                     <th class="pb-2 font-medium">Weak Crypto</th>
+                                    <th class="pb-2 font-medium">Assets</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${endpoints.map(ep => `
-                                    <tr class="border-b border-gray-100">
-                                        <td class="py-2 text-gray-900">${ep.endpoint || '-'}</td>
-                                        <td class="py-2 text-gray-600">${(ep.tls_versions || []).join(', ') || '-'}</td>
-                                        <td class="py-2 text-gray-600">${ep.weak_crypto_detected ? 'Yes' : 'No'}</td>
-                                    </tr>
-                                `).join('')}
+                                ${endpoints.map(ep => {
+                                    const rowKey = ep.endpoint || '-';
+                                    const expanded = !!window.subdomainRowExpanded[rowKey];
+                                    const assetCount = Array.isArray(ep.assets) ? ep.assets.length : 0;
+                                    const rows = [`
+                                        <tr class="border-b border-gray-100">
+                                            <td class="py-2 pr-2">
+                                                <button onclick="window.subdomainRowExpanded['${rowKey}'] = !window.subdomainRowExpanded['${rowKey}']; renderSubdomainScanReport(window.__lastSubdomainReportData);"
+                                                    class="w-6 h-6 flex items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-50 text-xs font-bold">
+                                                    ${expanded ? '−' : '+'}
+                                                </button>
+                                            </td>
+                                            <td class="py-2 text-gray-900">${ep.endpoint || '-'}</td>
+                                            <td class="py-2 text-gray-600">${(ep.tls_versions || []).join(', ') || '-'}</td>
+                                            <td class="py-2 text-gray-600">${ep.weak_crypto_detected ? 'Yes' : 'No'}</td>
+                                            <td class="py-2 text-gray-600">${assetCount}</td>
+                                        </tr>
+                                    `];
+                                    if (expanded) {
+                                        rows.push(`
+                                            <tr class="border-b border-gray-100 bg-gray-50">
+                                                <td></td>
+                                                <td colspan="4" class="py-4 pr-4">
+                                                    ${renderAssetTypeBreakdown(
+                                                        ep.assets,
+                                                        `subdomain:${rowKey}`,
+                                                        `renderSubdomainScanReport(window.__lastSubdomainReportData)`
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        `);
+                                    }
+                                    return rows.join('');
+                                }).join('')}
                             </tbody>
                         </table>
                     </div>
