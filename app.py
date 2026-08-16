@@ -31,7 +31,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTex
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, create_engine, select
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, create_engine, inspect, select, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -157,6 +157,24 @@ class User(Base):
     session_token: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
     last_login: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    # Email-based OTP login (added alongside existing password auth; does not replace it)
+    email: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True, index=True)
+    is_demo_account: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+
+
+class LoginOtp(Base):
+    """One-time-passcodes issued for email-based login."""
+    __tablename__ = "login_otps"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    otp_hash: Mapped[str] = mapped_column(String(255))
+    purpose: Mapped[str] = mapped_column(String(20), default="login")
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=False)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    consumed: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class ScanRecord(Base):
@@ -305,6 +323,15 @@ class VendorToggleRequest(BaseModel):
     enabled: bool
 
 
+class OtpRequestBody(BaseModel):
+    email: str = Field(..., min_length=3, max_length=255)
+
+
+class OtpVerifyBody(BaseModel):
+    email: str = Field(..., min_length=3, max_length=255)
+    otp: str = Field(..., min_length=6, max_length=6)
+
+
 class VendorScanRequest(BaseModel):
     vendor_ids: List[str] = Field(default_factory=list)
     timeout: int = Field(default=12, ge=1, le=60)
@@ -436,33 +463,96 @@ def _verify_password(password: str, stored_hash: str) -> bool:
 
 
 # ============================================================================
-# AUTO-INITIALIZATION: Database and Admin User Setup on Startup
+# LIGHTWEIGHT SCHEMA MIGRATION
+# Adds columns introduced after initial deployment (e.g. email-based OTP
+# login) to a pre-existing database without requiring Alembic. Base.metadata
+# .create_all() only creates missing *tables*, not missing *columns* on
+# tables that already exist, so new nullable columns need this explicit step.
+# ============================================================================
+def _run_light_migrations() -> None:
+    try:
+        insp = inspect(engine)
+        if "users" not in insp.get_table_names():
+            return  # fresh DB: create_all() will create the up-to-date schema
+        existing_cols = {c["name"] for c in insp.get_columns("users")}
+        with engine.begin() as conn:
+            if "email" not in existing_cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN email VARCHAR(255)"))
+                logger.info("Migration: added users.email column")
+            if "is_demo_account" not in existing_cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN is_demo_account BOOLEAN DEFAULT 0"))
+                logger.info("Migration: added users.is_demo_account column")
+            # Backfill email for previously self-registered users (username == email already)
+            conn.execute(text(
+                "UPDATE users SET email = username "
+                "WHERE (email IS NULL OR email = '') AND username LIKE '%@%'"
+            ))
+        try:
+            with engine.begin() as conn:
+                conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email_unique ON users(email)"))
+        except Exception as idx_exc:
+            logger.warning(f"Could not create unique index on users.email: {idx_exc}")
+    except Exception as e:
+        logger.error(f"Light migration failed: {e}")
+
+
+# Demo accounts covering every RBAC role, so the OTP flow can be demonstrated
+# end-to-end without a real mailbox. Passwords are kept only for backward
+# compatibility with the legacy password-based /login route.
+DEMO_USERS = [
+    {"username": "admin", "email": "admin.demo@qshield.local", "password": "admin123", "role": "admin"},
+    {"username": "analyst_demo", "email": "analyst.demo@qshield.local", "password": "analyst123", "role": "analyst"},
+    {"username": "viewer_demo", "email": "viewer.demo@qshield.local", "password": "viewer123", "role": "viewer"},
+    {"username": "cyberlead_demo", "email": "cyberlead.demo@qshield.local", "password": "cyberlead123", "role": "cyber_lead"},
+    {"username": "itlead_demo", "email": "itlead.demo@qshield.local", "password": "itlead123", "role": "it_lead"},
+    {"username": "securityhead_demo", "email": "securityhead.demo@qshield.local", "password": "securityhead123", "role": "security_head"},
+]
+
+
+def _seed_demo_users(db: Session) -> None:
+    """Idempotently ensure the demo account for every role exists and is flagged is_demo_account."""
+    for spec in DEMO_USERS:
+        user = db.query(User).filter(User.username == spec["username"]).first()
+        if user:
+            changed = False
+            if not user.email:
+                user.email = spec["email"]
+                changed = True
+            if not user.is_demo_account:
+                user.is_demo_account = True
+                changed = True
+            if changed:
+                db.add(user)
+        else:
+            db.add(
+                User(
+                    username=spec["username"],
+                    email=spec["email"],
+                    password_hash=_hash_password(spec["password"]),
+                    role=spec["role"],
+                    is_active=True,
+                    is_demo_account=True,
+                )
+            )
+    db.commit()
+
+
+# ============================================================================
+# AUTO-INITIALIZATION: Database and Demo User Setup on Startup
 # ============================================================================
 def _auto_initialize_database():
-    """Auto-initialize database and create default admin user on first startup."""
+    """Auto-initialize database, run migrations, and seed demo users on first startup."""
     try:
         # Create all tables
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables created/verified")
-        
-        # Check if any users exist
+
+        _run_light_migrations()
+
         db = SessionLocal()
         try:
-            has_users = db.scalar(select(User.id).limit(1))
-            
-            if not has_users:
-                # Create default admin user
-                admin_user = User(
-                    username="admin",
-                    password_hash=_hash_password("admin123"),
-                    role="admin",
-                    is_active=True
-                )
-                db.add(admin_user)
-                db.commit()
-                logger.info("Default admin user created: admin / admin123")
-            else:
-                logger.info("Database already has users, skipping admin creation")
+            _seed_demo_users(db)
+            logger.info("Demo users seeded/verified for all roles (see DEMO_USERS).")
         finally:
             db.close()
     except Exception as e:
@@ -526,6 +616,64 @@ class _NoUser:
 def _create_session_token() -> str:
     """Create a secure session token for a user."""
     return secrets.token_urlsafe(32)
+
+
+# ============================================================================
+# EMAIL-BASED OTP LOGIN
+# ============================================================================
+OTP_TTL_SECONDS = 45
+OTP_MAX_ATTEMPTS = 5
+# Pepper used to hash OTP codes at rest. A per-process random fallback is fine
+# since OTPs live for OTP_TTL_SECONDS only and never need to survive a restart.
+_OTP_PEPPER = os.getenv("OTP_SECRET_PEPPER") or secrets.token_hex(32)
+
+
+def _generate_otp() -> str:
+    """Generate a cryptographically random 6-digit OTP (zero-padded)."""
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def _hash_otp(otp: str, email: str) -> str:
+    """Hash an OTP code for storage (never store OTPs in plaintext)."""
+    msg = f"{email.strip().lower()}:{otp}".encode("utf-8")
+    return hmac.new(_OTP_PEPPER.encode("utf-8"), msg, hashlib.sha256).hexdigest()
+
+
+def _send_otp_email(to_email: str, otp: str) -> Optional[str]:
+    """Send an OTP code by email using the same SMTP_* settings as scheduled reports.
+
+    Returns an error string on failure, or None on success.
+    """
+    smtp_host = os.getenv("SMTP_HOST")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = os.getenv("SMTP_USERNAME")
+    smtp_password = os.getenv("SMTP_PASSWORD")
+    smtp_from = os.getenv("SMTP_FROM_EMAIL") or smtp_user
+    smtp_use_tls = os.getenv("SMTP_USE_TLS", "1") != "0"
+
+    if not smtp_host or not smtp_from:
+        return "SMTP is not configured (set SMTP_HOST and SMTP_FROM_EMAIL/SMTP_USERNAME)"
+
+    message = EmailMessage()
+    message["Subject"] = "Your Q-Shield login OTP"
+    message["From"] = smtp_from
+    message["To"] = to_email
+    message.set_content(
+        f"Your Q-Shield one-time login code is: {otp}\n\n"
+        f"This code expires in {OTP_TTL_SECONDS} seconds and can only be used once.\n"
+        f"If you did not request this, you can safely ignore this email."
+    )
+
+    try:
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=20) as smtp:
+            if smtp_use_tls:
+                smtp.starttls()
+            if smtp_user and smtp_password:
+                smtp.login(smtp_user, smtp_password)
+            smtp.send_message(message)
+        return None
+    except Exception as exc:
+        return str(exc)
 
 
 def _get_current_user(request: Request, db: Session) -> Optional[User]:
@@ -1355,6 +1503,174 @@ async def login_submit(
         )
 
 
+@app.post("/api/auth/otp/request")
+@limiter.limit("6/minute")
+async def otp_request(request: Request, body: OtpRequestBody, db: Session = Depends(get_db)):
+    """Issue a fresh 6-digit login OTP for the given email.
+
+    - Real accounts: OTP is emailed via SMTP; the code is never returned in the response.
+    - Demo accounts (is_demo_account=True): no email is sent (the address isn't real);
+      the code is returned in the response so the UI can display it inline.
+    """
+    email = body.email.strip().lower()
+    if "@" not in email or "." not in email.split("@")[-1]:
+        raise HTTPException(status_code=400, detail="Please enter a valid email address")
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="No account found with this email address")
+    if not user.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail="Your account is pending admin verification. Please wait or contact an administrator.",
+        )
+
+    now = datetime.now(timezone.utc)
+
+    # Resend protection: block a new OTP while a previous one is still valid.
+    active_otp = (
+        db.query(LoginOtp)
+        .filter(LoginOtp.email == email, LoginOtp.purpose == "login", LoginOtp.consumed.is_(False))
+        .order_by(LoginOtp.id.desc())
+        .first()
+    )
+    if active_otp:
+        expires_at = active_otp.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        remaining = int((expires_at - now).total_seconds())
+        if remaining > 0:
+            raise HTTPException(
+                status_code=429,
+                detail=f"An OTP was already sent. Please wait {remaining}s before requesting a new one.",
+            )
+        active_otp.consumed = True  # expired: invalidate before issuing a new one
+
+    # Invalidate any other stale, unconsumed OTPs for this email
+    db.query(LoginOtp).filter(
+        LoginOtp.email == email, LoginOtp.purpose == "login", LoginOtp.consumed.is_(False)
+    ).update({"consumed": True})
+
+    otp = _generate_otp()
+    otp_row = LoginOtp(
+        email=email,
+        otp_hash=_hash_otp(otp, email),
+        purpose="login",
+        is_demo=bool(user.is_demo_account),
+        attempts=0,
+        consumed=False,
+        expires_at=now + timedelta(seconds=OTP_TTL_SECONDS),
+    )
+    db.add(otp_row)
+    db.commit()
+
+    response: Dict[str, Any] = {
+        "success": True,
+        "expires_in": OTP_TTL_SECONDS,
+        "is_demo": bool(user.is_demo_account),
+    }
+
+    if user.is_demo_account:
+        # No real mailbox exists for demo accounts; surface the code directly.
+        response["demo_otp"] = otp
+        response["message"] = "Demo account — OTP shown below (no email is sent)."
+        logger.info(f"Demo OTP issued for {email}")
+    else:
+        send_error = _send_otp_email(email, otp)
+        if send_error:
+            logger.error(f"Failed to send OTP email to {email}: {send_error}")
+            db.rollback()
+            raise HTTPException(
+                status_code=502,
+                detail="Could not send OTP email. Please contact your administrator to verify SMTP configuration.",
+            )
+        response["message"] = f"OTP sent to {email}."
+
+    _log_event(db, user, "otp_requested", target=email, details={"is_demo": bool(user.is_demo_account)})
+    db.commit()
+    return response
+
+
+@app.post("/api/auth/otp/verify")
+@limiter.limit("10/minute")
+async def otp_verify(request: Request, body: OtpVerifyBody, db: Session = Depends(get_db)):
+    """Verify a submitted OTP and, on success, create a login session (same session
+    mechanism as the existing password login route)."""
+    email = body.email.strip().lower()
+    submitted = body.otp.strip()
+
+    if not submitted.isdigit() or len(submitted) != 6:
+        raise HTTPException(status_code=400, detail="OTP must be a 6-digit code")
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="No account found with this email address")
+
+    otp_row = (
+        db.query(LoginOtp)
+        .filter(LoginOtp.email == email, LoginOtp.purpose == "login", LoginOtp.consumed.is_(False))
+        .order_by(LoginOtp.id.desc())
+        .first()
+    )
+    if not otp_row:
+        raise HTTPException(status_code=400, detail="No active OTP found. Please request a new OTP.")
+
+    now = datetime.now(timezone.utc)
+    expires_at = otp_row.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    if now > expires_at:
+        otp_row.consumed = True
+        db.commit()
+        raise HTTPException(status_code=400, detail="OTP expired. Please request a new OTP.")
+
+    if otp_row.attempts >= OTP_MAX_ATTEMPTS:
+        otp_row.consumed = True
+        db.commit()
+        raise HTTPException(status_code=429, detail="Too many incorrect attempts. Please request a new OTP.")
+
+    expected_hash = _hash_otp(submitted, email)
+    if not hmac.compare_digest(expected_hash, otp_row.otp_hash):
+        otp_row.attempts += 1
+        db.commit()
+        remaining = OTP_MAX_ATTEMPTS - otp_row.attempts
+        if remaining <= 0:
+            otp_row.consumed = True
+            db.commit()
+            raise HTTPException(status_code=429, detail="Too many incorrect attempts. Please request a new OTP.")
+        raise HTTPException(status_code=400, detail=f"Incorrect OTP. {remaining} attempt(s) remaining.")
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail="Your account is pending admin verification. Please wait or contact an administrator.",
+        )
+
+    # Success: consume the OTP and create a session, identical to password login.
+    otp_row.consumed = True
+    session_token = _create_session_token()
+    user.session_token = session_token
+    user.last_login = now
+    db.commit()
+
+    response = JSONResponse({
+        "success": True,
+        "redirect": "/",
+        "user": {"username": user.username, "role": user.role},
+    })
+    response.set_cookie(
+        key="session_id",
+        value=session_token,
+        max_age=86400 * 7,  # 7 days
+        httponly=True,
+        secure=False,  # Set to True in production with HTTPS
+        samesite="lax",
+    )
+    _log_event(db, user, "login_successful_otp", target=email)
+    return response
+
+
 @app.get("/logout")
 async def logout(request: Request, db: Session = Depends(get_db)):
     """Clear session and logout user."""
@@ -1465,6 +1781,7 @@ async def register_user(request: Request, db: Session = Depends(get_db)):
         # Create new user (inactive until admin verifies)
         new_user = User(
             username=email,  # Use email as username
+            email=email,
             password_hash=_hash_password(password),
             role=role,
             is_active=False  # Require admin verification before first login
