@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from cbom_generator import generate_cbom
+from cbom_generator import cbom_to_cyclonedx_json, generate_cbom
 
 
 def _utc_date_str() -> str:
@@ -104,6 +104,28 @@ def _collect_assets(cbom_dict: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 def _get_endpoints(cbom_dict: Dict[str, Any]) -> List[Dict[str, Any]]:
     return cbom_dict.get("endpoints", [])
+
+
+def _display_asset_type(value: Any) -> str:
+    raw_value = str(value or "unknown").split(".")[-1].lower()
+    labels = {
+        "certificate": "Certificate",
+        "cipher_suite": "Cipher Suite",
+        "key_exchange": "Key Exchange",
+        "protocol": "Protocol",
+        "hash_algorithm": "Hash Algorithm",
+        "symmetric_cipher": "Symmetric Cipher",
+        "public_key": "Public Key",
+        "api_endpoint": "API Endpoint",
+        "pqc_kem": "PQC KEM",
+        "pqc_signature": "PQC Signature",
+        "hybrid_key_exchange": "Hybrid Key Exchange",
+    }
+    return labels.get(raw_value, raw_value.replace("_", " ").title())
+
+
+def _display_strength(value: Any) -> str:
+    return str(value or "unknown").split(".")[-1].title()
 
 
 def _detect_pqc_signatures(assets: List[Dict[str, Any]]) -> bool:
@@ -232,77 +254,7 @@ def _rbi_mapping(endpoints: List[Dict[str, Any]]) -> List[Dict[str, str]]:
 
 
 def _build_cyclonedx_1_6(cbom_dict: Dict[str, Any], system_name: str, date_str: str) -> Dict[str, Any]:
-    serial = f"urn:uuid:{uuid.uuid4()}"
-    bom_ref_root = f"{_sanitize_name(system_name)}@{date_str}"
-
-    assets = _collect_assets(cbom_dict)
-    components = []
-    for asset in assets:
-        asset_type = asset.get("asset_type", "unknown")
-        props = asset.get("properties", {})
-        bom_ref = f"{asset_type}:{asset.get('name')}:{asset.get('source_endpoint')}"
-        crypto_properties: Dict[str, Any] = {
-            "assetType": asset_type,
-        }
-        if asset_type in {"cipher_suite", "symmetric_cipher", "hash_algorithm", "public_key", "key_exchange", "pqc_kem", "pqc_signature", "hybrid_key_exchange"}:
-            crypto_properties["algorithmProperties"] = {
-                "algorithm": props.get("algorithm") or asset.get("name"),
-            }
-        if asset_type == "protocol":
-            crypto_properties["protocolProperties"] = {"protocolType": "TLS", "version": props.get("version")}
-        if asset_type == "certificate":
-            crypto_properties["certificateProperties"] = {
-                "subjectName": props.get("subject"),
-                "issuerName": props.get("issuer"),
-                "serialNumber": props.get("serial_number"),
-                "notValidBefore": props.get("valid_from"),
-                "notValidAfter": props.get("valid_to"),
-                "signatureAlgorithm": props.get("signature_algorithm"),
-            }
-
-        components.append(
-            {
-                "bom-ref": bom_ref,
-                "type": "cryptographic-asset",
-                "name": asset.get("name"),
-                "description": f"Discovered on {asset.get('source_endpoint')}",
-                "properties": [
-                    {"name": "strength", "value": str(asset.get("strength"))},
-                    {"name": "quantumVulnerable", "value": str(asset.get("quantum_vulnerable"))},
-                    {"name": "sourceEndpoint", "value": asset.get("source_endpoint")},
-                ],
-                "cryptoProperties": crypto_properties,
-            }
-        )
-
-    return {
-        "bomFormat": "CycloneDX",
-        "specVersion": "1.6",
-        "serialNumber": serial,
-        "version": 1,
-        "metadata": {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "tools": [
-                {
-                    "vendor": "Q-Shield",
-                    "name": "Q-Shield TLS Scanner",
-                    "version": "1.0.0",
-                }
-            ],
-            "component": {
-                "bom-ref": bom_ref_root,
-                "type": "application",
-                "name": system_name,
-                "version": "1.0.0",
-            },
-        },
-        "components": components,
-        "properties": [
-            {"name": "cbomVersion", "value": cbom_dict.get("cbom_version", "1.0.0")},
-            {"name": "generatedAt", "value": cbom_dict.get("generated_at")},
-            {"name": "generator", "value": cbom_dict.get("generator")},
-        ],
-    }
+    return cbom_to_cyclonedx_json(cbom_dict, system_name)
 
 
 @dataclass
@@ -355,11 +307,6 @@ def _build_html_cbom(ctx: ReportContext, cyclonedx_path: Path) -> str:
     @page {
         size: A4;
         margin: 0.6in;
-        @bottom-center {
-            content: "Page " counter(page) " of " counter(pages);
-            font-size: 9pt;
-            color: #999;
-        }
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -449,6 +396,51 @@ def _build_html_cbom(ctx: ReportContext, cyclonedx_path: Path) -> str:
         border-collapse: collapse;
         margin: 0.15in 0;
         font-size: 10pt;
+    }
+
+    .asset-table {
+        table-layout: fixed;
+        font-size: 8pt;
+    }
+
+    .asset-table th,
+    .asset-table td {
+        padding: 5pt;
+        line-height: 1.2;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        word-break: break-word;
+    }
+
+    .asset-table th:nth-child(1), .asset-table td:nth-child(1) { width: 15%; }
+    .asset-table th:nth-child(2), .asset-table td:nth-child(2) { width: 29%; }
+    .asset-table th:nth-child(3), .asset-table td:nth-child(3) { width: 12%; }
+    .asset-table th:nth-child(4), .asset-table td:nth-child(4) { width: 16%; }
+    .asset-table th:nth-child(5), .asset-table td:nth-child(5) { width: 10%; }
+    .asset-table th:nth-child(6), .asset-table td:nth-child(6) { width: 18%; }
+
+    .certificate-card {
+        page-break-inside: avoid;
+        margin: 0.15in 0 0.25in;
+    }
+
+    .certificate-table {
+        table-layout: fixed;
+        font-size: 9pt;
+    }
+
+    .certificate-table th {
+        width: 24%;
+        padding: 6pt;
+    }
+
+    .certificate-table td {
+        width: 76%;
+        padding: 6pt;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        word-break: break-word;
+        line-height: 1.3;
     }
 
     th {
@@ -581,7 +573,7 @@ def _build_html_cbom(ctx: ReportContext, cyclonedx_path: Path) -> str:
                 [
                     f"<h2>{endpoint_name}</h2>",
                     f"<p class=\"text-muted\">IP/Port: {html.escape(str(ip_value))}:{html.escape(str(port_value))}</p>",
-                    "<table>",
+                    "<table class=\"asset-table\">",
                     "<tr><th>Asset Type</th><th>Name</th><th>Strength</th><th>Quantum Vulnerable</th><th>Risk</th><th>Notes</th></tr>",
                 ]
             )
@@ -590,9 +582,9 @@ def _build_html_cbom(ctx: ReportContext, cyclonedx_path: Path) -> str:
                 html_parts.append("<tr><td colspan=\"6\" class=\"text-muted\"><em>No assets discovered</em></td></tr>")
             else:
                 for asset in assets:
-                    asset_type = html.escape(str(asset.get("asset_type") or "unknown"))
+                    asset_type = html.escape(_display_asset_type(asset.get("asset_type")))
                     name = html.escape(str(asset.get("name") or "-"))
-                    strength = str(asset.get("strength") or "unknown")
+                    strength = _display_strength(asset.get("strength"))
                     q_vuln = bool(asset.get("quantum_vulnerable"))
                     risk_value = float(_risk_from_strength(strength, q_vuln))
                     notes = ", ".join(asset.get("notes", []) or ["-"])
@@ -602,7 +594,7 @@ def _build_html_cbom(ctx: ReportContext, cyclonedx_path: Path) -> str:
                         "<tr>"
                         f"<td>{asset_type}</td>"
                         f"<td>{name}</td>"
-                        f"<td>{html.escape(str(strength))}</td>"
+                        f"<td>{html.escape(strength)}</td>"
                         f"<td><span class=\"{q_vuln_class}\">{'Yes' if q_vuln else 'No'}</span></td>"
                         f"<td><span class=\"{risk_class}\">{risk_value:.1f}/5</span></td>"
                         f"<td class=\"text-muted\">{html.escape(notes)}</td>"
@@ -631,7 +623,7 @@ def _build_html_cbom(ctx: ReportContext, cyclonedx_path: Path) -> str:
                 f"<h2>Domain: {html.escape(str(host))}</h2>",
                 f"<p class=\"text-muted\">IP: {html.escape(str(endpoint.get('ip_address') or endpoint.get('ip') or 'N/A'))} | Port: {html.escape(str(endpoint.get('port') or 'N/A'))}</p>",
                 "<h3>TLS/Certificate Assets</h3>",
-                "<table>",
+                "<table class=\"asset-table\">",
                 "<tr><th>Asset Type</th><th>Name</th><th>Strength</th><th>Quantum Risk</th><th>Status</th></tr>",
             ]
         )
@@ -641,14 +633,14 @@ def _build_html_cbom(ctx: ReportContext, cyclonedx_path: Path) -> str:
             html_parts.append("<tr><td colspan=\"5\" class=\"text-muted\"><em>No cryptographic assets</em></td></tr>")
         else:
             for asset in assets:
-                asset_type = html.escape(str(asset.get("asset_type") or "unknown"))
+                asset_type = html.escape(_display_asset_type(asset.get("asset_type")))
                 name = html.escape(str(asset.get("name") or "-"))
-                strength = str(asset.get("strength") or "unknown")
+                strength = _display_strength(asset.get("strength"))
                 q_vuln = bool(asset.get("quantum_vulnerable"))
                 risk_value = float(_risk_from_strength(strength, q_vuln))
                 risk_class = "risk-critical" if risk_value >= 4 else ("risk-high" if risk_value >= 3 else ("risk-medium" if risk_value >= 2 else "risk-low"))
                 q_vuln_class = "risk-critical" if q_vuln else "risk-low"
-                strength_display = html.escape(str(strength))
+                strength_display = html.escape(strength)
                 
                 html_parts.append(
                     "<tr>"
@@ -737,8 +729,6 @@ def _build_html_cbom(ctx: ReportContext, cyclonedx_path: Path) -> str:
         [
             "<div class=\"section-break\"></div>",
             "<h1>Certificates and Key Material</h1>",
-            "<table>",
-            "<tr><th>Subject</th><th>Issuer</th><th>Valid From</th><th>Valid To</th><th>Public Key</th><th>Signature Algorithm</th><th>Status</th></tr>",
         ]
     )
 
@@ -762,23 +752,25 @@ def _build_html_cbom(ctx: ReportContext, cyclonedx_path: Path) -> str:
                 status_class = "status-met" if "ML-DSA" in sig_algo or "SLH-DSA" in sig_algo else "status-gap"
                 status_label = "PQC" if "ML-" in sig_algo or "SLH-" in sig_algo else "Classical"
                 html_parts.append(
-                    "<tr>"
-                    f"<td>{subject}</td>"
-                    f"<td>{issuer}</td>"
-                    f"<td>{valid_from}</td>"
-                    f"<td>{valid_to}</td>"
-                    f"<td class=\"text-muted\">{pubkey_info}</td>"
-                    f"<td>{sig_algo}</td>"
-                    f"<td><span class=\"{status_class}\">{status_label}</span></td>"
-                    "</tr>"
+                    "<div class=\"certificate-card\">"
+                    f"<h2>{html.escape(str(endpoint.get('endpoint') or 'Certificate'))}</h2>"
+                    "<table class=\"certificate-table\">"
+                    f"<tr><th>Subject</th><td>{subject}</td></tr>"
+                    f"<tr><th>Issuer</th><td>{issuer}</td></tr>"
+                    f"<tr><th>Valid From</th><td>{valid_from}</td></tr>"
+                    f"<tr><th>Valid To</th><td>{valid_to}</td></tr>"
+                    f"<tr><th>Public Key</th><td class=\"text-muted\">{pubkey_info}</td></tr>"
+                    f"<tr><th>Signature Algorithm</th><td>{sig_algo}</td></tr>"
+                    f"<tr><th>Status</th><td><span class=\"{status_class}\">{status_label}</span></td></tr>"
+                    "</table>"
+                    "</div>"
                 )
 
     if cert_count == 0:
-        html_parts.append("<tr><td colspan=\"7\" class=\"text-muted\"><em>No certificates discovered</em></td></tr>")
+        html_parts.append("<p class=\"text-muted\"><em>No certificates discovered</em></p>")
 
     html_parts.extend(
         [
-            "</table>",
             "<div class=\"section-break\"></div>",
             "<h1>PQC Readiness Assessment</h1>",
             "<p>",
@@ -893,7 +885,7 @@ def generate_outputs(
     cbom = generate_cbom(scan_results)
     cbom_dict = cbom.to_dict()
 
-    cyclonedx = _build_cyclonedx_1_6(cbom_dict, system_name, date_str)
+    cyclonedx = cbom_to_cyclonedx_json(cbom, system_name)
 
     file_system_name = _sanitize_name(system_name)
     json_path = output_dir / f"CBOM_PNB_{file_system_name}_{date_str}_v1.0.json"

@@ -61,6 +61,7 @@ suitable for compliance reporting, risk assessment, and crypto-agility planning.
 
 import json
 import hashlib
+import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field, asdict
@@ -712,42 +713,139 @@ def generate_cbom(scan_results: List[Dict[str, Any]]) -> CBOM:
 
 
 # === CBOM ENHANCEMENTS FOR IBM/CYCLONEDX ===
-def cbom_to_cyclonedx_json(cbom: CBOM) -> Dict[str, Any]:
-    """
-    Convert internal CBOM to CycloneDX/IBM CBOM-compliant JSON structure.
-    This includes 'components', 'dependencies', and all required cryptoProperties fields.
-    """
-    components = []
-    dependencies = []
-    for endpoint in cbom.endpoints:
-        for asset in endpoint.assets:
-            comp = {
-                "type": "crypto-asset",
-                "name": asset.name,
-                "cbom:assetType": asset.asset_type.value if hasattr(asset.asset_type, 'value') else str(asset.asset_type),
-                "cbom:strength": asset.strength.value if hasattr(asset.strength, 'value') else str(asset.strength),
-                "cbom:quantumVulnerable": asset.quantum_vulnerable,
-                "cbom:sourceEndpoint": asset.source_endpoint,
-                "cbom:notes": asset.notes,
-                "cbom:cryptoProperties": asset.properties,
+def cbom_to_cyclonedx_json(cbom: Any, system_name: str = "Q-Shield") -> Dict[str, Any]:
+    """Convert the internal inventory into a CycloneDX 1.6 CBOM."""
+    root_ref = f"qshield:application:{system_name}"
+    components = [{
+        "type": "application",
+        "bom-ref": root_ref,
+        "name": system_name,
+        "version": "1.0.0",
+    }]
+    root_dependencies = []
+    seen_refs = set()
+
+    if isinstance(cbom, dict):
+        cbom_version = cbom.get("cbom_version", "1.0.0")
+        generated_at = cbom.get("generated_at")
+        generator = cbom.get("generator", "Q-Shield TLS Scanner")
+        endpoints = cbom.get("endpoints", [])
+    else:
+        cbom_version = cbom.cbom_version
+        generated_at = cbom.generated_at
+        generator = cbom.generator
+        endpoints = cbom.endpoints
+
+    def value(item: Any, key: str, default: Any = None) -> Any:
+        return item.get(key, default) if isinstance(item, dict) else getattr(item, key, default)
+
+    def add_property(properties: List[Dict[str, str]], name: str, item_value: Any) -> None:
+        if item_value is not None:
+            properties.append({"name": name, "value": str(item_value)})
+
+    for endpoint in endpoints:
+        endpoint_assets = value(endpoint, "assets", [])
+        for asset in endpoint_assets:
+            asset_type = value(asset, "asset_type", "unknown")
+            asset_type = asset_type.value if hasattr(asset_type, "value") else str(asset_type)
+            asset_name = value(asset, "name", "unknown")
+            source_endpoint = value(asset, "source_endpoint", "")
+            asset_id = value(asset, "asset_id", "")
+            bom_ref = asset_id or f"qshield:{asset_type}:{uuid.uuid4()}"
+            if bom_ref in seen_refs:
+                continue
+            seen_refs.add(bom_ref)
+            asset_properties = value(asset, "properties", {}) or {}
+            crypto_properties: Dict[str, Any] = {}
+            component_type = "crypto-asset"
+
+            if asset_type == "certificate":
+                crypto_properties = {
+                    "assetType": "certificate",
+                    "certificateProperties": {
+                        key: item_value for key, item_value in {
+                            "subjectName": asset_properties.get("subject"),
+                            "issuerName": asset_properties.get("issuer"),
+                            "notValidBefore": asset_properties.get("valid_from"),
+                            "notValidAfter": asset_properties.get("valid_to"),
+                            "certificateAlgorithm": asset_properties.get("public_key_algorithm"),
+                            "certificateSignatureAlgorithm": asset_properties.get("signature_algorithm"),
+                            "certificateFormat": "X.509",
+                        }.items() if item_value is not None
+                    },
+                }
+            elif asset_type == "protocol":
+                cipher_suites = [
+                    value(candidate, "name") for candidate in endpoint_assets
+                    if str(value(candidate, "asset_type", "")) == "cipher_suite"
+                ]
+                crypto_properties = {
+                    "assetType": "protocol",
+                    "protocolProperties": {"tlsCipherSuites": [name for name in cipher_suites if name]},
+                }
+            elif asset_type == "public_key":
+                related_properties = {
+                    "relatedCryptoMaterialType": "publicKey",
+                    "size": asset_properties.get("key_size"),
+                    "format": "X.509",
+                }
+                crypto_properties = {
+                    "assetType": "relatedCryptoMaterial",
+                    "relatedCryptoMaterialProperties": {
+                        key: item_value for key, item_value in related_properties.items() if item_value is not None
+                    },
+                }
+            elif asset_type == "api_endpoint":
+                component_type = "application"
+            else:
+                primitive = "kem" if asset_type in {"pqc_kem", "key_exchange", "hybrid_key_exchange"} else (
+                    "hash" if asset_type == "hash_algorithm" else "ae" if asset_type in {"cipher_suite", "symmetric_cipher"} else "unknown"
+                )
+                crypto_properties = {
+                    "assetType": "algorithm",
+                    "algorithmProperties": {
+                        "variant": asset_properties.get("algorithm") or asset_name,
+                        "primitive": primitive,
+                    },
+                }
+
+            component: Dict[str, Any] = {
+                "type": component_type,
+                "bom-ref": bom_ref,
+                "name": asset_name,
+                "description": f"Discovered on {source_endpoint}",
             }
-            components.append(comp)
-            # Example dependency: (extend as needed)
-            dependencies.append({
-                "ref": asset.asset_id,
-                "dependencyType": "uses" if asset.quantum_vulnerable else "implements"
-            })
-    cyclonedx_cbom = {
+            if crypto_properties:
+                component["cryptoProperties"] = crypto_properties
+            properties = []
+            strength = value(asset, "strength", "unknown")
+            strength = strength.value if hasattr(strength, "value") else strength
+            add_property(properties, "qshield:strength", strength)
+            add_property(properties, "qshield:quantumVulnerable", value(asset, "quantum_vulnerable", True))
+            add_property(properties, "qshield:sourceEndpoint", source_endpoint)
+            notes = value(asset, "notes", [])
+            if notes:
+                add_property(properties, "qshield:notes", "; ".join(notes))
+            if properties:
+                component["properties"] = properties
+            components.append(component)
+            root_dependencies.append(bom_ref)
+
+    result = {
         "bomFormat": "CycloneDX",
-        "specVersion": "1.4",
-        "cbomVersion": cbom.cbom_version,
-        "generated": cbom.generated_at,
-        "generator": cbom.generator,
+        "specVersion": "1.6",
+        "serialNumber": f"urn:uuid:{uuid.uuid4()}",
+        "version": 1,
+        "metadata": {
+            "timestamp": generated_at or datetime.now(timezone.utc).isoformat(),
+            "tools": [{"vendor": "Q-Shield", "name": generator, "version": "1.0.0"}],
+            "component": {"type": "application", "bom-ref": root_ref, "name": system_name, "version": "1.0.0"},
+        },
         "components": components,
-        "dependencies": dependencies,
-        "summary": cbom.summary,
     }
-    return cyclonedx_cbom
+    if root_dependencies:
+        result["dependencies"] = [{"ref": root_ref, "dependsOn": root_dependencies, "dependencyType": "uses"}]
+    return result
 
 def export_cbom_pdf(cbom: CBOM, pdf_path: str):
     """

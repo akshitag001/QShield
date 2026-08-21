@@ -54,7 +54,7 @@ def _to_iso_utc(dt: Optional[datetime]) -> Optional[str]:
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-from cbom_generator import generate_cbom
+from cbom_generator import cbom_to_cyclonedx_json, generate_cbom
 from generate_cbom_outputs import _build_html_cbom, _build_report_context
 from report_pdf import generate_pdf, LATEST_REPORT_PATH
 from tls_scanner import scan_tls
@@ -2746,7 +2746,7 @@ async def download_cbom(scan_id: str, request: Request, db: Session = Depends(ge
     if not scan or not scan.cbom_json:
         raise HTTPException(status_code=404, detail="CBOM not found")
 
-    cbom = json.loads(scan.cbom_json)
+    cbom = cbom_to_cyclonedx_json(json.loads(scan.cbom_json), scan.target)
     filename = f"cbom_{scan.target.replace(':', '_').replace('/', '_')}_{scan.scan_id}.json"
     content = json.dumps(cbom, indent=2, sort_keys=True)
 
